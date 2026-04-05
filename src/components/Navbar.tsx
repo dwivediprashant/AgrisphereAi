@@ -169,6 +169,7 @@ const Navbar = () => {
 const UserProfileMenu = () => {
     const { logout, user } = useAuthStore();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
@@ -342,7 +343,7 @@ const UserProfileMenu = () => {
                 <DialogHeader>
                     <DialogTitle className="text-xl font-bold flex items-center gap-2">
                         {user?.role === 'buyer' ? <Briefcase className="w-5 h-5 text-blue-400" /> : <User className="w-5 h-5 text-green-400" />}
-                        {user?.role === 'buyer' ? 'Buyer Profile' : 'Farmer Profile'}
+                        {user?.role === 'buyer' ? t('home.profile.buyerTitle') : t('home.profile.farmerTitle')}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -361,22 +362,22 @@ const UserProfileMenu = () => {
                                 <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleFileChange} />
                             </div>
                             <div className="text-center">
-                                <p className="text-sm text-slate-400">Click image to upload photo</p>
+                                <p className="text-sm text-slate-400">{t('home.profile.uploadPhoto')}</p>
                             </div>
                         </div>
 
                         {/* Basic Details */}
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Full Name</Label>
+                                <Label htmlFor="name">{t('home.profile.fullName')}</Label>
                                 <Input id="name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} className="bg-slate-950 border-slate-700" />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="dob">Date of Birth</Label>
+                                <Label htmlFor="dob">{t('home.profile.dob')}</Label>
                                 <Input id="dob" type="date" value={profile.dob} onChange={(e) => setProfile({ ...profile, dob: e.target.value })} className="bg-slate-950 border-slate-700" />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="phone">Mobile Number</Label>
+                                <Label htmlFor="phone">{t('home.profile.phone')}</Label>
                                 <Input
                                     id="phone"
                                     placeholder="+91"
@@ -386,17 +387,17 @@ const UserProfileMenu = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>Location</Label>
-                                <Input value="India" disabled className="bg-slate-900 border-slate-800 text-slate-500 mb-2" />
+                                <Label>{t('home.profile.location')}</Label>
+                                <Input value={t('common.india')} disabled className="bg-slate-900 border-slate-800 text-slate-500 mb-2" />
                                 <div className="grid grid-cols-2 gap-2">
                                     <Select value={profile.state} onValueChange={(val) => setProfile({ ...profile, state: val })}>
-                                        <SelectTrigger className="bg-slate-950 border-slate-700"><SelectValue placeholder="State" /></SelectTrigger>
+                                        <SelectTrigger className="bg-slate-950 border-slate-700"><SelectValue placeholder={t('home.profile.state')} /></SelectTrigger>
                                         <SelectContent className="max-h-[200px] bg-slate-900 border-slate-700 text-white">
                                             {Object.keys(indianStates).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                     <Select value={profile.district} onValueChange={(val) => setProfile({ ...profile, district: val })} disabled={!profile.state}>
-                                        <SelectTrigger className="bg-slate-950 border-slate-700"><SelectValue placeholder="District" /></SelectTrigger>
+                                        <SelectTrigger className="bg-slate-950 border-slate-700"><SelectValue placeholder={t('home.profile.district')} /></SelectTrigger>
                                         <SelectContent className="max-h-[200px] bg-slate-900 border-slate-700 text-white">
                                             {profile.state && indianStates[profile.state]?.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                                         </SelectContent>
@@ -404,7 +405,7 @@ const UserProfileMenu = () => {
                                 </div>
                                 <div className="relative mt-2">
                                     <Input
-                                        placeholder="Village / Town"
+                                        placeholder={t('home.profile.village')}
                                         value={profile.village}
                                         onChange={(e) => setProfile({ ...profile, village: e.target.value })}
                                         className="bg-slate-950 border-slate-700 pr-10"
@@ -415,7 +416,7 @@ const UserProfileMenu = () => {
                                         className="absolute right-0 top-0 h-full hover:bg-transparent hover:text-green-400"
                                         onClick={handleGPS}
                                         disabled={isLoadingLocation}
-                                        title="Use GPS"
+                                        title={t('home.profile.useGps')}
                                     >
                                         {isLoadingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
                                     </Button>
@@ -427,32 +428,32 @@ const UserProfileMenu = () => {
                             {user?.role === 'buyer' ? (
                                 <>
                                     <Label className="text-secondary font-bold flex items-center gap-2">
-                                        🏢 Buyer Details
+                                        🏢 {t('home.profile.buyerDetails')}
                                     </Label>
-                                    <p className="text-xs text-slate-500">Fill details to build trust with farmers.</p>
+                                    <p className="text-xs text-slate-500">{t('home.profile.buyerSubtitle')}</p>
                                     <div className="grid grid-cols-1 gap-4">
                                         <div className="space-y-1">
-                                            <Label className="text-xs text-slate-400">Company / Business Name (Optional)</Label>
+                                            <Label className="text-xs text-slate-400">{t('home.profile.company')}</Label>
                                             <Input placeholder="e.g. Fresh Foods Pvt Ltd" value={profile.company || ""} onChange={(e) => setProfile({ ...profile, company: e.target.value })} className="bg-slate-950 border-slate-700" />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-xs text-slate-400">Trading License / GST (Optional)</Label>
+                                            <Label className="text-xs text-slate-400">{t('home.profile.license')}</Label>
                                             <Input placeholder="License Number" value={profile.license || ""} onChange={(e) => setProfile({ ...profile, license: e.target.value })} className="bg-slate-950 border-slate-700" />
                                         </div>
                                     </div>
                                     <div className="space-y-1 mt-2">
-                                        <Label className="text-xs text-secondary font-bold">Buying Interests (Required)</Label>
+                                        <Label className="text-xs text-secondary font-bold">{t('home.profile.interests')}</Label>
                                         <Input placeholder="e.g. Wheat, Rice, Organic Vegetables" value={profile.interests || ""} onChange={(e) => setProfile({ ...profile, interests: e.target.value })} className="bg-slate-950 border-slate-700 border-l-4 border-l-secondary" />
                                     </div>
                                 </>
                             ) : (
                                 <>
-                                    <Label>Farm Details</Label>
+                                    <Label>{t('home.profile.farmDetails')}</Label>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <Input placeholder="Farm Size (Acres)" type="number" value={profile.farmSize} onChange={(e) => setProfile({ ...profile, farmSize: e.target.value })} className="bg-slate-950 border-slate-700" />
-                                        <Input placeholder="Experience (Years)" type="number" value={profile.experience} onChange={(e) => setProfile({ ...profile, experience: e.target.value })} className="bg-slate-950 border-slate-700" />
+                                        <Input placeholder={t('home.profile.farmSize')} type="number" value={profile.farmSize} onChange={(e) => setProfile({ ...profile, farmSize: e.target.value })} className="bg-slate-950 border-slate-700" />
+                                        <Input placeholder={t('home.profile.experience')} type="number" value={profile.experience} onChange={(e) => setProfile({ ...profile, experience: e.target.value })} className="bg-slate-950 border-slate-700" />
                                     </div>
-                                    <Input placeholder="Primary Crops (e.g. Wheat, Rice, Cotton)" value={profile.crops} onChange={(e) => setProfile({ ...profile, crops: e.target.value })} className="bg-slate-950 border-slate-700 mt-2" />
+                                    <Input placeholder={t('home.profile.primaryCrops')} value={profile.crops} onChange={(e) => setProfile({ ...profile, crops: e.target.value })} className="bg-slate-950 border-slate-700 mt-2" />
                                 </>
                             )}
                         </div>
@@ -461,10 +462,10 @@ const UserProfileMenu = () => {
 
                 <div className="p-6 border-t border-slate-800 flex justify-between bg-slate-900/50 backdrop-blur-sm mt-auto">
                     <Button variant="destructive" size="sm" onClick={() => { logout(); navigate('/'); }} className="gap-2">
-                        <LogOut className="w-4 h-4" /> Logout
+                        <LogOut className="w-4 h-4" /> {t('home.profile.logout')}
                     </Button>
                     <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 gap-2">
-                        <Settings className="w-4 h-4" /> Save Profile
+                        <Settings className="w-4 h-4" /> {t('home.profile.saveProfile')}
                     </Button>
                 </div>
             </DialogContent>

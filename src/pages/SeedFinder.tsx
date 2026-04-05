@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 const SeedFinder = () => {
+    const { t } = useTranslation();
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("locator");
@@ -36,11 +38,11 @@ const SeedFinder = () => {
 
     const handleLocateMe = () => {
         if (!navigator.geolocation) {
-            toast({ title: "Error", description: "Geolocation is not supported by your browser", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('common.error'), variant: "destructive" });
             return;
         }
 
-        toast({ title: "Locating...", description: "Getting your precise location..." });
+        toast({ title: t('seeds.toasts.locating'), description: t('seeds.toasts.locatingDesc') });
 
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords;
@@ -106,18 +108,18 @@ const SeedFinder = () => {
                 setShops(localShops);
 
                 toast({
-                    title: "Location Found",
-                    description: `Showing shops near ${city}, ${state}.`,
+                    title: t('seeds.toasts.found'),
+                    description: t('seeds.toasts.foundDesc', { city, state }),
                     className: "bg-green-600 text-white border-none"
                 });
 
             } catch (error) {
                 console.error("Geocoding failed", error);
-                toast({ title: "Error", description: "Could not fetch city details.", variant: "destructive" });
+                toast({ title: t('common.error'), description: t('seeds.toasts.errorLoc'), variant: "destructive" });
             }
         }, (error) => {
             console.error("Geolocation error", error);
-            toast({ title: "Permission Denied", description: "Please enable location access.", variant: "destructive" });
+            toast({ title: t('seeds.toasts.permDenied'), description: t('seeds.toasts.permDeniedDesc'), variant: "destructive" });
         });
     };
 
@@ -137,13 +139,13 @@ const SeedFinder = () => {
                 <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium mb-3 border border-green-500/20">
-                            <Sprout className="w-4 h-4" /> Smart Agri-Inputs
+                            <Sprout className="w-4 h-4" /> {t('common.agroAI', { defaultValue: 'Smart Agri-Inputs' })}
                         </div>
                         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">
-                            Seed Finder & <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">Shop Locator</span>
+                            {t('seeds.title')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">{t('seeds.subtitle')}</span>
                         </h1>
                         <p className="text-lg text-slate-400 max-w-2xl">
-                            Find high-quality seeds, locate government subsidies, and know exactly what documents you need.
+                            {t('seeds.desc')}
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -152,10 +154,10 @@ const SeedFinder = () => {
                             className="border-slate-700 hover:bg-slate-800 gap-2 h-12"
                             onClick={() => window.open("https://seednet.gov.in/", "_blank")}
                         >
-                            <Search className="w-4 h-4" /> Verify on SeedNet (Govt)
+                            <Search className="w-4 h-4" /> {t('seeds.verifySeedNet')}
                         </Button>
                         <Button className="bg-green-600 hover:bg-green-700 text-white gap-2 h-12" onClick={handleLocateMe}>
-                            <Navigation className="w-4 h-4" /> Locate Nearby Shops
+                            <Navigation className="w-4 h-4" /> {t('seeds.locateShops')}
                         </Button>
                     </div>
                 </div>
@@ -163,10 +165,10 @@ const SeedFinder = () => {
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
                     <TabsList className="bg-slate-900 border border-slate-800 p-1 h-14">
                         <TabsTrigger value="locator" className="h-12 px-6 data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400 text-base">
-                            <MapPin className="w-4 h-4 mr-2" /> Find Shops
+                            <MapPin className="w-4 h-4 mr-2" /> {t('seeds.tabs.findShops')}
                         </TabsTrigger>
                         <TabsTrigger value="advisor" className="h-12 px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white text-slate-400 text-base">
-                            <Sprout className="w-4 h-4 mr-2" /> Seed Advisor
+                            <Sprout className="w-4 h-4 mr-2" /> {t('seeds.tabs.advisor')}
                         </TabsTrigger>
                     </TabsList>
 
@@ -177,7 +179,7 @@ const SeedFinder = () => {
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-500" />
                                 <Input
-                                    placeholder="Search for seeds (e.g., Wheat, Urea)..."
+                                    placeholder={t('seeds.searchPlaceholder')}
                                     className="pl-10 h-12 bg-slate-900 border-slate-800 text-white text-lg focus:ring-green-500/50"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -189,21 +191,21 @@ const SeedFinder = () => {
                                     onClick={() => setShopFilter("All")}
                                     className={shopFilter === "All" ? "bg-slate-800" : "border-slate-800 text-slate-400"}
                                 >
-                                    All
+                                    {t('seeds.all')}
                                 </Button>
                                 <Button
                                     variant={shopFilter === "Government" ? "default" : "outline"}
                                     onClick={() => setShopFilter("Government")}
                                     className={shopFilter === "Government" ? "bg-orange-600 hover:bg-orange-700" : "border-slate-800 text-slate-400"}
                                 >
-                                    <Landmark className="w-4 h-4 mr-2" /> Govt (Subsidized)
+                                    <Landmark className="w-4 h-4 mr-2" /> {t('seeds.govtSubsidized')}
                                 </Button>
                                 <Button
                                     variant={shopFilter === "Private" ? "default" : "outline"}
                                     onClick={() => setShopFilter("Private")}
                                     className={shopFilter === "Private" ? "bg-blue-600 hover:bg-blue-700" : "border-slate-800 text-slate-400"}
                                 >
-                                    <Store className="w-4 h-4 mr-2" /> Private
+                                    <Store className="w-4 h-4 mr-2" /> {t('seeds.private')}
                                 </Button>
                             </div>
                         </div>
@@ -217,10 +219,10 @@ const SeedFinder = () => {
                                             <Badge variant="outline" className={`
                                                 ${shop.type === 'Government' ? 'border-orange-500/50 text-orange-400 bg-orange-500/10' : 'border-blue-500/50 text-blue-400 bg-blue-500/10'}
                                             `}>
-                                                {shop.type}
+                                                {shop.type === 'Government' ? t('seeds.govtSubsidized') : t('seeds.private')}
                                             </Badge>
                                             <span className="text-slate-400 text-sm flex items-center gap-1">
-                                                <Navigation className="w-3 h-3" /> {shop.distance} km
+                                                <Navigation className="w-3 h-3" /> {shop.distance} {t('seeds.unit.km')}
                                             </span>
                                         </div>
                                         <CardTitle className="text-xl text-white group-hover:text-green-400 transition-colors">
@@ -232,7 +234,7 @@ const SeedFinder = () => {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div>
-                                            <p className="text-sm font-semibold text-slate-300 mb-2">In Stock:</p>
+                                            <p className="text-sm font-semibold text-slate-300 mb-2">{t('seeds.inStock')}</p>
                                             <div className="flex flex-wrap gap-2">
                                                 {shop.availableSeeds.map((seed, idx) => (
                                                     <Badge key={idx} variant="secondary" className="bg-slate-800 text-slate-300 hover:bg-slate-700">
@@ -244,7 +246,7 @@ const SeedFinder = () => {
                                         {shop.subsidies && (
                                             <div className="bg-green-900/20 border border-green-900/50 p-3 rounded-lg">
                                                 <p className="text-green-400 text-sm font-medium flex items-center gap-2">
-                                                    <ShieldCheck className="w-4 h-4" /> Subsidy Available
+                                                    <ShieldCheck className="w-4 h-4" /> {t('seeds.subsidyAvailable')}
                                                 </p>
                                                 <p className="text-slate-400 text-xs mt-1">{shop.subsidies.join(", ")}</p>
                                             </div>
@@ -252,20 +254,20 @@ const SeedFinder = () => {
                                     </CardContent>
                                     <CardFooter className="flex gap-3 pt-4 border-t border-slate-800">
                                         <Button variant="outline" className="flex-1 border-slate-700 hover:bg-slate-800">
-                                            <Phone className="w-4 h-4 mr-2" /> Call
+                                            <Phone className="w-4 h-4 mr-2" /> {t('seeds.call')}
                                         </Button>
 
                                         <Dialog>
                                             <DialogTrigger asChild>
                                                 <Button className="flex-1 bg-slate-800 hover:bg-slate-700 text-white">
-                                                    <FileText className="w-4 h-4 mr-2" /> Docs Needed
+                                                    <FileText className="w-4 h-4 mr-2" /> {t('seeds.docsNeeded')}
                                                 </Button>
                                             </DialogTrigger>
                                             <DialogContent className="bg-slate-950 border-slate-800 text-white">
                                                 <DialogHeader>
-                                                    <DialogTitle>Required Documents</DialogTitle>
+                                                    <DialogTitle>{t('seeds.requiredDocs')}</DialogTitle>
                                                     <DialogDescription className="text-slate-400">
-                                                        Carry these documents to {shop.name} for purchase/subsidy.
+                                                        {t('seeds.carryDocs', { shopName: shop.name })}
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="space-y-4 mt-4">
@@ -293,21 +295,21 @@ const SeedFinder = () => {
                             {/* Advisor Form */}
                             <Card className="bg-slate-900 border-slate-800 h-fit">
                                 <CardHeader>
-                                    <CardTitle className="text-white">Smart Recommendation</CardTitle>
+                                    <CardTitle className="text-white">{t('seeds.advisorTitle')}</CardTitle>
                                     <CardDescription className="text-slate-400">
-                                        Select your current season to get expert-verified seed suggestions.
+                                        {t('seeds.advisorDesc')}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Season</label>
+                                        <label className="text-sm font-medium text-slate-300">{t('seeds.selectSeason')}</label>
                                         <Select onValueChange={setSelectedSeason}>
                                             <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                                                <SelectValue placeholder="Select Season" />
+                                                <SelectValue placeholder={t('seeds.selectSeason')} />
                                             </SelectTrigger>
                                             <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                                <SelectItem value="Rabi">Rabi (Winter)</SelectItem>
-                                                <SelectItem value="Kharif">Kharif (Monsoon)</SelectItem>
+                                                <SelectItem value="Rabi">{t('seeds.seasonRabi')}</SelectItem>
+                                                <SelectItem value="Kharif">{t('seeds.seasonKharif')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -315,7 +317,7 @@ const SeedFinder = () => {
                                     <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
                                         <p className="text-xs text-slate-400 flex gap-2">
                                             <AlertCircle className="w-4 h-4 text-blue-400" />
-                                            AI Tip: For best results, ensure soil testing is done before sowing.
+                                            {t('seeds.aiTip')}
                                         </p>
                                     </div>
                                 </CardContent>
@@ -326,7 +328,7 @@ const SeedFinder = () => {
                                 {!selectedSeason ? (
                                     <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-800 rounded-xl bg-slate-900/20 text-slate-500">
                                         <Sprout className="w-12 h-12 mb-4 opacity-50" />
-                                        <p>Select a season to view recommendations</p>
+                                        <p>{t('seeds.selectSeasonPrompt')}</p>
                                     </div>
                                 ) : (
                                     <div className="grid gap-4">
@@ -344,7 +346,7 @@ const SeedFinder = () => {
                                                 <div className="text-right">
                                                     <div className="text-xl font-bold text-white mb-1">{rec.price}</div>
                                                     <Button size="sm" variant="outline" className="border-slate-700 hover:bg-slate-800 text-xs h-8">
-                                                        Check Availability
+                                                        {t('seeds.checkAvailability')}
                                                     </Button>
                                                 </div>
                                             </div>

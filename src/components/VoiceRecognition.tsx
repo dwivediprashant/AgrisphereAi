@@ -6,8 +6,12 @@ import { Card } from '@/components/ui/card';
 import { chatWithAI, translateToHindi } from '@/lib/openai';
 import { mockChatWithAI } from '@/lib/mockAI';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import { useDialect } from '@/lib/use-dialect';
 
 const VoiceRecognition = () => {
+  const { t, i18n } = useTranslation();
+  const { dialect } = useDialect();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [response, setResponse] = useState('');
@@ -74,7 +78,8 @@ const VoiceRecognition = () => {
             },
             body: JSON.stringify({
               text: spokenText,
-              language: languageName // Send full name for AI context
+              language: languageName, // Send full name for AI context
+              dialect: dialect        // Send current dialect
             })
           });
 
@@ -242,7 +247,7 @@ const VoiceRecognition = () => {
       <Card className="p-4">
         <h3 className="font-bold mb-3 flex items-center gap-2">
           <Languages className="w-5 h-5" />
-          Select Language / भाषा चुनें
+          {t('voiceAssistant.demo.selectLang')}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {languages.map((lang) => (
@@ -286,10 +291,10 @@ const VoiceRecognition = () => {
 
           <div className="space-y-2">
             <p className="text-lg font-semibold">
-              {isListening ? 'सुन रहा हूं... / Listening...' : 'बोलने के लिए दबाएं / Press to Speak'}
+              {isListening ? t('voiceAssistant.demo.listening') : t('voiceAssistant.demo.pressToSpeak')}
             </p>
             {isProcessing && (
-              <p className="text-muted-foreground">प्रोसेसिंग... / Processing...</p>
+              <p className="text-muted-foreground">{t('voiceAssistant.demo.processing')}</p>
             )}
           </div>
         </div>
@@ -305,7 +310,7 @@ const VoiceRecognition = () => {
           <Card className="p-4">
             <h4 className="font-semibold mb-2 flex items-center gap-2">
               <Mic className="w-4 h-4" />
-              आपने कहा / You said:
+              {t('voiceAssistant.demo.youSaid')}
             </h4>
             <p className="text-muted-foreground">{transcript}</p>
           </Card>
@@ -314,7 +319,7 @@ const VoiceRecognition = () => {
             <Card className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-semibold flex items-center gap-2">
-                  🤖 AgriSphere AI का जवाब / Response:
+                  {t('voiceAssistant.demo.aiResponse')}
                 </h4>
                 <div className="flex gap-2">
                   {isSpeaking ? (
@@ -355,7 +360,7 @@ const VoiceRecognition = () => {
 
       {/* Example Questions */}
       <Card className="p-4">
-        <h4 className="font-semibold mb-3">उदाहरण प्रश्न / Example Questions:</h4>
+        <h4 className="font-semibold mb-3">{t('voiceAssistant.demo.exampleQuestionsTitle')}</h4>
         <div className="grid gap-2">
           {exampleQuestions.map((q, i) => (
             <div key={i} className="space-y-2">
@@ -376,7 +381,8 @@ const VoiceRecognition = () => {
                         },
                         body: JSON.stringify({
                           text: q.hindi,
-                          language: 'hi-IN' // Examples are in Hindi
+                          language: 'hi-IN', // Examples are in Hindi
+                          dialect: dialect
                         })
                       });
 
@@ -437,8 +443,8 @@ const VoiceRecognition = () => {
 
       {/* Browser Support Note */}
       <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
-        <p><strong>Note:</strong> Voice recognition requires a modern browser with microphone permissions. Works best in Chrome/Edge.</p>
-        <p><strong>नोट:</strong> आवाज़ पहचान के लिए आधुनिक ब्राउज़र और माइक्रोफ़ोन की अनुमति चाहिए।</p>
+        <p><strong>{t('voiceAssistant.demo.noteTitle')}:</strong> {t('voiceAssistant.demo.noteDesc')}</p>
+        <p>{t('voiceAssistant.demo.noteHindiDesc')}</p>
       </div>
     </div >
   );

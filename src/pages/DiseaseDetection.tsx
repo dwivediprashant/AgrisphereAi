@@ -3,13 +3,14 @@ import { Brain, Camera, Upload, Zap, Target, Activity, ArrowLeft, Bug, Leaf, App
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import EnhancedImageAnalysis from "@/components/EnhancedImageAnalysis";
-import ImageAnalysis from "@/components/ImageAnalysis";
 import { EnhancedDiseaseDetector } from "@/lib/enhanced-disease-detection";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from "react-router-dom";
 
 const DiseaseDetection = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [detector] = useState(() => new EnhancedDiseaseDetector());
   const [isLoading, setIsLoading] = useState(true);
   const analysisRef = useRef<HTMLDivElement>(null);
@@ -85,10 +86,10 @@ const DiseaseDetection = () => {
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <Button variant="ghost" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-0" onClick={() => navigate("/")}>
               <ArrowLeft className="w-4 h-4" />
               {t('disease.backHome')}
-            </a>
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌱</span>

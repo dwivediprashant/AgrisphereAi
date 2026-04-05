@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Loader2, Sprout, Newspaper, PlaySquare, RefreshCw, Search, Mic } from "lucide-react";
 import { toast } from "sonner";
+import { useDialect } from "@/lib/use-dialect";
+import { getDialectForState } from "@/lib/dialect-translator";
 // Services & Data
 import { ALL_SCHEMES } from "@/services/schemesData";
 import { getEligibleSchemes } from "@/services/schemeEngine";
@@ -25,6 +27,7 @@ const OfflineFertilizerCalculator = lazy(() => import("@/components/OfflineFerti
 
 const AdvisoryHub = () => {
     const { t, i18n } = useTranslation();
+    const { dialect } = useDialect();
     const language: "Hindi" | "English" = i18n.language === 'hi' ? "Hindi" : "English";
 
     // State
@@ -63,7 +66,7 @@ const AdvisoryHub = () => {
                 const cached = localStorage.getItem('cachedSchemes');
                 if (cached) {
                     setSchemes(JSON.parse(cached));
-                    toast.info("Offline: Loaded schemes from cache.");
+                    toast.info(t('advisoryHub.offline.loadedCache') || "Offline: Loaded schemes from cache.");
                 }
                 return;
             }
@@ -88,7 +91,7 @@ const AdvisoryHub = () => {
 
         // Otherwise, fetch NEW schemes from AI
         setLoadingAiSchemes(true);
-        toast.info("Asking AI for more schemes...");
+        toast.info(t('advisoryHub.loading.askingAi') || "Asking AI for more schemes...");
         try {
             const { fetchLatestSchemes } = await import("../services/aiSchemeService");
             const newSchemes = await fetchLatestSchemes(language);
@@ -104,13 +107,13 @@ const AdvisoryHub = () => {
                 // Since useEffect updates 'schemes', and we render slice(0, visibleCount),
                 // we should increase visibleCount to accommodate the new items.
                 setVisibleCount(prev => prev + uniqueNew.length);
-                toast.success(`Added ${uniqueNew.length} new schemes.`);
+                toast.success(t('advisoryHub.success.addedSchemes', { count: uniqueNew.length }));
             } else {
-                toast.info("AI couldn't find any new unique schemes right now.");
+                toast.info(t('advisoryHub.info.noNewSchemes'));
             }
         } catch (error) {
             console.error(error);
-            toast.error("Failed to load more schemes.");
+            toast.error(t('advisoryHub.error.loadSchemes'));
         } finally {
             setLoadingAiSchemes(false);
         }
@@ -217,7 +220,7 @@ const AdvisoryHub = () => {
                 setVideos(videos);
                 setVideoNextToken(nextPageToken);
             }).finally(() => setLoadingVideos(false));
-            toast.success(t('advisoryHub.toasts.videosRefreshed') || "Videos refreshed!");
+            toast.success(t('advisoryHub.toasts.videosRefreshed'));
         } else if (activeTab === "news") {
             setNews([]);
             setNewsPage(1);
@@ -226,12 +229,12 @@ const AdvisoryHub = () => {
                 setNews(data);
                 setNewsPage(1);
             }).finally(() => setLoadingNews(false));
-            toast.success(t('advisoryHub.toasts.newsRefreshed') || "News refreshed!");
+            toast.success(t('advisoryHub.toasts.newsRefreshed'));
         } else if (activeTab === "schemes") {
             // For schemes, maybe trigger AI re-check or just re-run eligible
             const eligible = getEligibleSchemes(profile, ALL_SCHEMES);
             setSchemes([...eligible, ...aiSchemes]);
-            toast.success(t('advisoryHub.toasts.schemesRefreshed') || "Schemes refreshed!");
+            toast.success(t('advisoryHub.toasts.schemesRefreshed'));
         }
     };
 
@@ -279,8 +282,7 @@ const AdvisoryHub = () => {
             };
 
             recognition.start();
-        } else {
-            toast.error("Voice search not supported in this browser.");
+            toast.error(t('common.voiceUnsupported'));
         }
     };
 
@@ -314,7 +316,7 @@ const AdvisoryHub = () => {
                         {activeTab === "videos" && (
                             <div className="flex items-center gap-2 bg-green-100 border border-black rounded-full px-4 py-1.5 shadow-sm hover:shadow-md transition-all">
                                 <Input
-                                    placeholder={t('marketplace.listings.search')}
+                                    placeholder={t('advisoryHub.searchPlaceholder', { defaultValue: 'Search farming news & videos...' })}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={handleKeyDown}
@@ -446,8 +448,8 @@ const AdvisoryHub = () => {
                 <TabsContent value="news" className="space-y-6">
                     {!import.meta.env.VITE_NEWS_API_KEY && (
                         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
-                            <p className="font-bold">Configuration Needed</p>
-                            <p>Please add <code>VITE_NEWS_API_KEY</code> to your .env file to see news updates.</p>
+                            <p className="font-bold">{t('advisoryHub.configNeeded.title')}</p>
+                            <p>{t('advisoryHub.configNeeded.desc', { key: 'VITE_NEWS_API_KEY', feature: t('advisoryHub.tabs.news') })}</p>
                         </div>
                     )}
                     {/* News Grid */}
@@ -479,8 +481,8 @@ const AdvisoryHub = () => {
                 <TabsContent value="videos" className="space-y-6">
                     {!import.meta.env.VITE_YOUTUBE_API_KEY && (
                         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
-                            <p className="font-bold">Configuration Needed</p>
-                            <p>Please add <code>VITE_YOUTUBE_API_KEY</code> to your .env file to see video content.</p>
+                            <p className="font-bold">{t('advisoryHub.configNeeded.title')}</p>
+                            <p>{t('advisoryHub.configNeeded.desc', { key: 'VITE_YOUTUBE_API_KEY', feature: t('advisoryHub.tabs.videos') })}</p>
                         </div>
                     )}
 

@@ -3,45 +3,22 @@ import axios from "axios";
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_CHATBOT_API_KEY;
 
 /**
- * Simplifies complex scheme text into simple Hindi/English for farmers using Groq.
+ * Simplifies complex scheme text into simple Hindi/English for farmers using the backend AI service.
+ * Always falls back to original text if AI fails to prevent technical errors showing.
  */
-export const simplifyTextForFarmer = async (text: string, language: "Hindi" | "English" = "Hindi"): Promise<string> => {
-    if (!GROQ_API_KEY) {
-        console.error("Groq API Key missing");
-        return "Voice service unavailable. Please check configuration.";
-    }
-
+export const simplifyTextForFarmer = async (text: string, language: string = "Hindi"): Promise<string> => {
     try {
-        const prompt = `You are an expert agriculture advisor. Explain the following government scheme details to a farmer in simple ${language}. Keep it short (2-3 sentences max) and easy to understand. Do not invent facts. \n\nDetails: ${text}`;
+        const response = await axios.post("http://localhost:5000/simplify-text", {
+            text,
+            language
+        });
 
-        const response = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: "You are a helpful agricultural assistant for Indian farmers." },
-                    { role: "user", content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 150
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${GROQ_API_KEY}`,
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-
-        return response.data.choices[0]?.message?.content || "Could not generate explanation.";
+        return response.data.simplified_text || text;
 
     } catch (error: any) {
-        console.error("Groq AI Simplification Error:", error);
-        // Better error for debugging
-        if (error.response) {
-            return `Error: ${error.response.status} - ${error.response.data?.error?.message || "Unknown API Error"}`;
-        }
-        return `Error: ${error.message || "Could not simplify text"}`;
+        console.error("Simplification error, falling back to original:", error);
+        // Important: Return original text instead of error to maintain UX
+        return text;
     }
 };
 
@@ -55,7 +32,8 @@ export const stopSpeech = () => {
 };
 
 /**
- * Speaks the text using Web Speech API.
+ * Speaks the text using Web Speech API with smart voice fallback.
+ * If the requested language voice is not available, falls back to next best.
  */
 export const speakText = (text: string, lang: string = "hi-IN") => {
     if (!window.speechSynthesis) {
@@ -66,10 +44,52 @@ export const speakText = (text: string, lang: string = "hi-IN") => {
     // Stop previous speech
     stopSpeech();
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1;
+    const langFallbackMap: Record<string, string[]> = {
+        'as-IN': ['as-IN', 'bn-IN', 'hi-IN', 'en-IN', 'en-US'],
+        'kn-IN': ['kn-IN', 'te-IN', 'hi-IN', 'en-IN', 'en-US'],
+        'bn-IN': ['bn-IN', 'hi-IN', 'en-IN', 'en-US'],
+        'hi-IN': ['hi-IN', 'en-IN', 'en-US'],
+        'en-IN': ['en-IN', 'en-US'],
+        'mr-IN': ['mr-IN', 'hi-IN', 'en-IN', 'en-US'],
+        'ta-IN': ['ta-IN', 'te-IN', 'en-IN', 'en-US'],
+        'te-IN': ['te-IN', 'ta-IN', 'en-IN', 'en-US'],
+    };
 
-    window.speechSynthesis.speak(utterance);
+    const doSpeak = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const fallbacks = langFallbackMap[lang] || [lang, 'hi-IN', 'en-IN', 'en-US'];
+
+        let selectedVoice: SpeechSynthesisVoice | null = null;
+        let chosenLang = lang;
+
+        for (const fallbackLang of fallbacks) {
+            const voice = voices.find(
+                v => v.lang === fallbackLang || v.lang.startsWith(fallbackLang.split('-')[0])
+            );
+            if (voice) {
+                selectedVoice = voice;
+                chosenLang = fallbackLang;
+                break;
+            }
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = chosenLang;
+        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+
+        window.speechSynthesis.speak(utterance);
+    };
+
+    // Voices may not be loaded yet on first call (browser async)
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        doSpeak();
+    } else {
+        window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.onvoiceschanged = null;
+            doSpeak();
+        };
+    }
 };

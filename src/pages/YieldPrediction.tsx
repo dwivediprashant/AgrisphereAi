@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -9,51 +8,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Sprout, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-
 import { useTranslation } from "react-i18next";
+import { useDialect } from "@/lib/use-dialect";
 
 const YieldPrediction = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const { dialect, localize } = useDialect();
     const [isLoading, setIsLoading] = useState(false);
-    const [result, setResult] = useState(null);
+    const [result, setResult] = useState<any>(null);
+    const [advice, setAdvice] = useState("");
+    const [isLocalizing, setIsLocalizing] = useState(false);
     const [formData, setFormData] = useState({
         crop: "Rice",
-        area: 5000,
+        area: 5,
         temp: 22.0,
         humidity: 80.0,
         rainfall: 1800.0,
-        fertilizer: 600000.0,
-        pesticide: 300.0,
+        fertilizer: 600.0,
+        pesticide: 30.0,
         soil_ph: 5.2,
         soil_n: 300.0,
         soil_p: 35.0,
         soil_k: 200.0
     });
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSelectChange = (value) => {
+    const handleSelectChange = (value: string) => {
         setFormData(prev => ({ ...prev, crop: value }));
     };
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    const handlePredict = async (e) => {
+    const handlePredict = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setResult(null);
+        setAdvice("");
 
         try {
-            // Convert Acres to Hectares for the Model
-            // 1 Acre = 0.4047 Hectares
             const areaInAcres = parseFloat(formData.area.toString());
             const areaInHectares = areaInAcres * 0.4047;
 
-            // Prepare payload with Metric units
             const payload = {
                 ...formData,
                 area: areaInHectares
@@ -71,36 +71,43 @@ const YieldPrediction = () => {
             }
 
             const data = await response.json();
-
-            // Calculate Total Production
-            // Yield (t/ha) * Area (ha)
             const totalProduction = data.predicted_yield * areaInHectares;
-
-            // Calculate Approximate Revenue (₹)
-            // Prices (approx): Rice ₹22/kg, Maize ₹20/kg, Ginger ₹40/kg
-            // 1 Ton = 1000 kg
-            const prices = { 'Rice': 22000, 'Maize': 20000, 'Ginger': 40000 }; // per Ton
+            const prices: Record<string, number> = { 'Rice': 22000, 'Maize': 20000, 'Ginger': 40000 };
             const pricePerTon = prices[formData.crop] || 20000;
             const revenue = totalProduction * pricePerTon;
 
-            setResult({
+            const resultData = {
                 ...data,
                 totalProduction,
                 revenue,
                 areaInAcres,
                 areaInHectares
-            });
+            };
+
+            setResult(resultData);
+
+            if (dialect !== 'Standard') {
+                setIsLocalizing(true);
+                const rawAdvice = t('yield.summary.report', {
+                  crop: formData.crop,
+                  total: totalProduction.toFixed(2),
+                  efficiency: data.predicted_yield.toFixed(2)
+                });
+                const localized = await localize(rawAdvice);
+                setAdvice(localized);
+                setIsLocalizing(false);
+            }
 
             toast({
-                title: "Prediction Successful",
-                description: `Estimated Production: ${totalProduction.toFixed(2)} Tons`,
+                title: t('yield.predictionSuccess', 'Prediction Success'),
+                description: `${t('yield.estimatedProduction', 'Estimated Production')}: ${totalProduction.toFixed(2)} ${t('yield.tonsUnit', 'Tons')}`,
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Prediction Error:", error);
             toast({
                 variant: "destructive",
-                title: "Error",
+                title: t('common.error', 'Error'),
                 description: error.message,
             });
         } finally {
@@ -110,7 +117,6 @@ const YieldPrediction = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header */}
             <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -134,16 +140,15 @@ const YieldPrediction = () => {
                         <h1 className="text-4xl font-bold mb-4">{t('yield.title')}</h1>
                         <p className="text-muted-foreground">
                             {t('yield.desc')}
-                            <br />{t('yield.supportedCrops')}: <span className="font-semibold text-green-500">Rice, Maize, Ginger</span>.
+                            <br />{t('yield.supportedCrops')}: <span className="font-semibold text-green-500">{t('common.crops.rice')}, {t('common.crops.maize')}, {t('common.crops.ginger')}</span>.
                         </p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* Input Form */}
                         <Card className="p-6">
                             <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-blue-500" />
-                                {t('yield.inputTitle')}
+                                {t('yield.inputTitle', 'Input Parameters')}
                             </h2>
                             <form onSubmit={handlePredict} className="space-y-4">
                                 <div className="space-y-2">
@@ -153,9 +158,9 @@ const YieldPrediction = () => {
                                             <SelectValue placeholder={t('yield.selectCrop')} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Rice">Rice</SelectItem>
-                                            <SelectItem value="Maize">Maize</SelectItem>
-                                            <SelectItem value="Ginger">Ginger</SelectItem>
+                                            <SelectItem value="Rice">{t('common.crops.rice')}</SelectItem>
+                                            <SelectItem value="Maize">{t('common.crops.maize')}</SelectItem>
+                                            <SelectItem value="Ginger">{t('common.crops.ginger')}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -163,138 +168,35 @@ const YieldPrediction = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>{t('yield.area')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="area"
-                                            value={formData.area}
-                                            onChange={handleInputChange}
-                                            required
-                                            placeholder="e.g 2.5"
-                                        />
+                                        <Input type="number" name="area" value={formData.area} onChange={handleInputChange} required />
                                         <p className="text-xs text-muted-foreground">{t('yield.areaNote')}</p>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>{t('yield.rainfall')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="rainfall"
-                                            value={formData.rainfall}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
+                                        <Label>{t('yield.rainfall', 'Rainfall (mm)')}</Label>
+                                        <Input type="number" name="rainfall" value={formData.rainfall} onChange={handleInputChange} required />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>{t('yield.temp')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="temp"
-                                            value={formData.temp}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
+                                        <Input type="number" name="temp" value={formData.temp} onChange={handleInputChange} required />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>{t('yield.humidity')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="humidity"
-                                            value={formData.humidity}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
+                                        <Input type="number" name="humidity" value={formData.humidity} onChange={handleInputChange} required />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>{t('yield.fertilizer')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="fertilizer"
-                                            value={formData.fertilizer}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t('yield.pesticide')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="pesticide"
-                                            value={formData.pesticide}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>{t('yield.soilPh')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="soil_ph"
-                                            step="0.1"
-                                            value={formData.soil_ph}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t('yield.soilN')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="soil_n"
-                                            value={formData.soil_n}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>{t('yield.soilP')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="soil_p"
-                                            value={formData.soil_p}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t('yield.soilK')}</Label>
-                                        <Input
-                                            type="number"
-                                            name="soil_k"
-                                            value={formData.soil_k}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                                    disabled={isLoading}
-                                >
+                                <Button type="submit" className="w-full bg-gradient-to-r from-green-600 to-emerald-600" disabled={isLoading}>
                                     {isLoading ? t('yield.analyzing') : t('yield.predictBtn')}
                                 </Button>
                             </form>
                         </Card>
 
-                        {/* Results Display */}
                         <div className="space-y-6">
                             {result ? (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                >
+                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
                                     <Card className="p-6 border-green-500/20 bg-green-500/5">
                                         <h3 className="text-lg font-semibold mb-4 text-green-600 flex items-center gap-2">
                                             <CheckCircle2 className="w-5 h-5" />
@@ -303,57 +205,44 @@ const YieldPrediction = () => {
 
                                         <div className="text-center mb-6 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-border/50">
                                             <p className="text-muted-foreground mb-1 uppercase text-xs font-bold tracking-wider">{t('yield.totalProduction')}</p>
-                                            <div className="text-4xl md:text-5xl font-bold text-green-600">
+                                            <div className="text-4xl font-bold text-green-600">
                                                 {result.totalProduction.toFixed(2)}
-                                                <span className="text-xl text-muted-foreground ml-2">Tons</span>
+                                                <span className="text-xl text-muted-foreground ml-2">{t('yield.tonsUnit')}</span>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mt-2">
-                                                from {result.areaInAcres} Acres ({result.areaInHectares.toFixed(2)} Ha)
-                                            </p>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4 mb-4">
                                             <div className="p-3 bg-blue-500/10 rounded-lg text-center border border-blue-500/20">
                                                 <p className="text-xs text-blue-600 font-semibold uppercase mb-1">{t('yield.yieldEfficiency')}</p>
-                                                <p className="text-xl font-bold text-foreground">{result.predicted_yield.toFixed(2)} t/ha</p>
-                                                <p className="text-xs text-muted-foreground">{t('yield.perHectare')}</p>
+                                                <p className="text-xl font-bold">{result.predicted_yield.toFixed(2)} t/ha</p>
                                             </div>
                                             <div className="p-3 bg-amber-500/10 rounded-lg text-center border border-amber-500/20">
-                                                <p className="text-xs text-amber-600 font-semibold uppercase mb-1">{t('yield.potentialRevenue')}</p>
-                                                <p className="text-xl font-bold text-foreground">₹{(result.revenue / 100000).toFixed(2)} Lakh</p>
-                                                <p className="text-xs text-muted-foreground">{t('yield.approx')}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3 bg-background/50 p-4 rounded-lg">
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-muted-foreground">{t('yield.confidence')}:</span>
-                                                <span className="font-medium">
-                                                    {result.confidence_interval.lower.toFixed(2)} - {result.confidence_interval.upper.toFixed(2)} t/ha
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-muted-foreground">{t('yield.modelUsed')}:</span>
-                                                <span className="font-medium">XGBoost (Optimized)</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-muted-foreground">{t('yield.trainingData')}:</span>
-                                                <span className="font-medium">1997 - 2019 (Meghalaya)</span>
+                                                <p className="text-xs text-amber-600 font-semibold uppercase mb-1">{t('yield.revenue')}</p>
+                                                <p className="text-xl font-bold">₹{(result.revenue / 100000).toFixed(2)} L</p>
                                             </div>
                                         </div>
 
                                         <div className="mt-4 p-3 bg-blue-500/10 rounded border border-blue-500/20 text-sm text-blue-600 flex gap-2">
                                             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                                            <p>
-                                                {t('yield.accuracyNote')}
-                                            </p>
+                                            <p>{t('yield.accuracyNote')}</p>
                                         </div>
+
+                                        {dialect !== 'Standard' && (
+                                            <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                                                <h4 className="text-sm font-bold text-primary mb-2 flex items-center gap-2">
+                                                    <span>🤖</span> {t('pest.advisorTitle', 'AI Advisor')} ({dialect})
+                                                </h4>
+                                                <p className="text-sm italic text-muted-foreground">
+                                                    {isLocalizing ? t('common.localizing', 'Localizing...') : advice}
+                                                </p>
+                                            </div>
+                                        )}
                                     </Card>
                                 </motion.div>
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 border-2 border-dashed rounded-xl">
                                     <Sprout className="w-16 h-16 mb-4 opacity-20" />
-                                    <p>{t('yield.readyDesc')}</p>
+                                    <p>{t('yield.readyDesc', 'Enter parameters to predict yield.')}</p>
                                 </div>
                             )}
                         </div>

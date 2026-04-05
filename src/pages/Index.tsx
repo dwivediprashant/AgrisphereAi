@@ -25,35 +25,35 @@ const Index = () => {
       title: t("home.features.f1.title"),
       description: t("home.features.f1.desc"),
       gradient: "from-primary to-primary-glow",
-      details: ["Pest Detection", "Nutrient Deficiency", "Fungal Infections", "Soil Texture Analysis"]
+      details: [t("home.features.f1.b1"), t("home.features.f1.b2"), t("home.features.f1.b3"), t("home.features.f1.b4")]
     },
     {
       icon: MapPin,
       title: t("home.features.f2.title"),
       description: t("home.features.f2.desc"),
       gradient: "from-accent to-accent-glow",
-      details: ["Field Boundaries", "Soil Zones", "Irrigation Zones", "Growth Stages"]
+      details: [t("home.features.f2.b1"), t("home.features.f2.b2"), t("home.features.f2.b3"), t("home.features.f2.b4")]
     },
     {
       icon: TrendingUp,
       title: t("home.features.f3.title"),
       description: t("home.features.f3.desc"),
       gradient: "from-secondary to-secondary-glow",
-      details: ["Weather Analysis", "Soil Type Mapping", "Historical Data", "ML Forecasting"]
+      details: [t("home.features.f3.b1"), t("home.features.f3.b2"), t("home.features.f3.b3"), t("home.features.f3.b4")]
     },
     {
       icon: Cloud,
       title: t("home.features.f4.title"),
       description: t("home.features.f4.desc"),
       gradient: "from-accent to-secondary",
-      details: ["Flood Alerts", "Drought Warning", "Heatwave Detection", "SMS Alerts"]
+      details: [t("home.features.f4.b1"), t("home.features.f4.b2"), t("home.features.f4.b3"), t("home.features.f4.b4")]
     },
     {
       icon: Zap,
       title: t("home.features.f5.title"),
       description: t("home.features.f5.desc"),
       gradient: "from-secondary to-primary",
-      details: ["NPK Analysis", "Water Prediction", "Smart Scheduling", "Nutrition Optimization"]
+      details: [t("home.features.f5.b1"), t("home.features.f5.b2"), t("home.features.f5.b3"), t("home.features.f5.b4")]
     },
   ];
 
@@ -139,7 +139,7 @@ const Index = () => {
               className="inline-block mb-4 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm font-medium text-primary"
             >
               <span className="animate-pulse mr-2">●</span>
-              AI-Powered Smart Agriculture
+              {t("home.heroBadge", "AI-Powered Smart Agriculture")}
             </motion.div>
 
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight tracking-tight">
@@ -180,7 +180,7 @@ const Index = () => {
               className="flex flex-wrap gap-4"
             >
               <Button size="lg" className="bg-gradient-primary hover:shadow-glow-primary transition-all duration-300 group h-14 px-8 text-lg rounded-xl">
-                {t("home.getStarted")}
+                {t("nav.getStarted")}
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
 
@@ -354,7 +354,7 @@ const Index = () => {
                   initial={{ x: -10 }}
                   whileHover={{ x: 0 }}
                 >
-                  Learn more <ArrowRight className="ml-2 w-4 h-4" />
+                  {t('home.learnMore')} <ArrowRight className="ml-2 w-4 h-4" />
                 </motion.a>
               </Card>
             </motion.div>
@@ -421,37 +421,37 @@ const Index = () => {
                 title: t('home.advanced.pests.title'),
                 desc: t('home.advanced.pests.desc'),
                 icon: "🐛",
-                features: ["Climate Analysis", "7-Day Risk Forecast", "Prevention Alerts", "Treatment Recommendations"]
+                features: [t('home.advanced.pests.b1'), t('home.advanced.pests.b2'), t('home.advanced.pests.b3'), t('home.advanced.pests.b4')]
               },
               {
                 title: t('home.advanced.seedToMarket.title'),
                 desc: t('home.advanced.seedToMarket.desc'),
                 icon: "🌾",
-                features: ["Seed Selection", "Sowing Time", "Harvest Prediction", "Market Pricing"]
+                features: [t('home.advanced.seedToMarket.b1'), t('home.advanced.seedToMarket.b2'), t('home.advanced.seedToMarket.b3'), t('home.advanced.seedToMarket.b4')]
               },
               {
                 title: t('home.advanced.voice.title'),
                 desc: t('home.advanced.voice.desc'),
                 icon: "🎤",
-                features: ["Hindi Support", "Voice Recognition", "Local Languages", "Audio Responses"]
+                features: [t('home.advanced.voice.b1'), t('home.advanced.voice.b2'), t('home.advanced.voice.b3'), t('home.advanced.voice.b4')]
               },
               {
                 title: t('home.advanced.schemes.title'),
                 desc: t('home.advanced.schemes.desc'),
                 icon: "🏛️",
-                features: ["Subsidy Matching", "Loan Eligibility", "Insurance Plans", "PM-KISAN"]
+                features: [t('home.advanced.schemes.b1'), t('home.advanced.schemes.b2'), t('home.advanced.schemes.b3'), t('home.advanced.schemes.b4')]
               },
               {
                 title: t('home.advanced.marketplace.title'),
                 desc: t('home.advanced.marketplace.desc'),
                 icon: "🛒",
-                features: ["Direct Selling", "AI Pricing", "Logistics", "Income Boost"]
+                features: [t('home.advanced.marketplace.b1'), t('home.advanced.marketplace.b2'), t('home.advanced.marketplace.b3'), t('home.advanced.marketplace.b4')]
               },
               {
                 title: t('home.advanced.blockchain.title'),
                 desc: t('home.advanced.blockchain.desc'),
                 icon: "⛓️",
-                features: ["Origin Tracking", "Supply Chain", "Authenticity", "Quality Assurance"]
+                features: [t('home.advanced.blockchain.b1'), t('home.advanced.blockchain.b2'), t('home.advanced.blockchain.b3'), t('home.advanced.blockchain.b4')]
               }
             ].map((feature, i) => (
               <div key={i} className="group relative card-gradient p-8 rounded-2xl border-2 border-primary/30 transition-all duration-500 hover:scale-[1.02] overflow-hidden">
@@ -660,17 +660,17 @@ const Index = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {[
-              { name: "Random Forest ML", desc: "Yield prediction" },
-              { name: "LSTM Networks", desc: "Time series analysis" },
-              { name: "Gradient Boosting", desc: "Advanced regression" },
-              { name: "Mapbox GIS", desc: "Digital twin mapping" },
-              { name: "Multi-class CNN", desc: "Disease detection" },
-              { name: "Blockchain", desc: "Supply traceability" },
-              { name: "Voice Recognition", desc: "Hindi commands" },
-              { name: "Offline Caching", desc: "Village accessibility" },
-              { name: "SMS Gateway", desc: "Alert fallback" },
-              { name: "WhatsApp API", desc: "Instant notifications" },
-              { name: "End-to-End Encryption", desc: "Data security" }
+              { name: "Random Forest ML", desc: t('home.tech.t1') },
+              { name: "LSTM Networks", desc: t('home.tech.t2') },
+              { name: "Gradient Boosting", desc: t('home.tech.t3') },
+              { name: "Mapbox GIS", desc: t('home.tech.t4') },
+              { name: "Multi-class CNN", desc: t('home.tech.t5') },
+              { name: "Blockchain", desc: t('home.tech.t6') },
+              { name: "Voice Recognition", desc: t('home.tech.t7') },
+              { name: "Offline Caching", desc: t('home.tech.t8') },
+              { name: "SMS Gateway", desc: t('home.tech.t9') },
+              { name: "WhatsApp API", desc: t('home.tech.t10') },
+              { name: "End-to-End Encryption", desc: t('home.tech.t11') }
             ].map((tech, i) => (
               <div key={i} className="group relative text-center p-6 card-gradient rounded-xl border-2 border-primary/30 transition-all duration-300 hover:scale-105 overflow-hidden">
                 {/* Animated Border */}
@@ -742,36 +742,36 @@ const Index = () => {
                 <span className="text-xl font-bold gradient-text">AgriSphere AI</span>
               </div>
               <p className="text-muted-foreground text-sm">
-                Empowering farmers with AI and GIS technology for sustainable, profitable agriculture.
+                {t('home.footer.tagline')}
               </p>
             </div>
 
             {[
               {
-                title: "Features",
+                title: t('home.footer.col1'),
                 links: [
-                  { name: "Disease Detection", path: "/disease-detection" },
-                  { name: "Digital Twin", path: "/digital-twin" },
-                  { name: "Yield Prediction", path: "/yield-prediction" },
-                  { name: "Voice Assistant", path: "/voice-assistant" }
+                  { name: t('nav.diseaseDetection'), path: "/disease-detection" },
+                  { name: t('nav.digitalTwin'), path: "/digital-twin" },
+                  { name: t('nav.yieldPrediction'), path: "/yield-prediction" },
+                  { name: t('nav.voiceAssistant'), path: "/voice-assistant" }
                 ]
               },
               {
-                title: "Platform",
+                title: t('home.footer.col2'),
                 links: [
-                  { name: "Marketplace", path: "/marketplace" },
-                  { name: "IoT Monitoring", path: "/iot-monitoring" },
-                  { name: "Weather Alerts", path: "#" },
-                  { name: "Community", path: "#" }
+                  { name: t('nav.marketplace'), path: "/marketplace" },
+                  { name: t('home.footer.iot'), path: "/iot-monitoring" },
+                  { name: t('home.footer.weather'), path: "#" },
+                  { name: t('home.footer.community'), path: "#" }
                 ]
               },
               {
-                title: "Support",
+                title: t('home.footer.col3'),
                 links: [
-                  { name: "Help Center", path: "#" },
-                  { name: "Documentation", path: "#" },
-                  { name: "API Guide", path: "#" },
-                  { name: "Contact", path: "#" }
+                  { name: t('home.footer.help'), path: "#" },
+                  { name: t('home.footer.docs'), path: "#" },
+                  { name: t('home.footer.api'), path: "#" },
+                  { name: t('home.footer.contact'), path: "#" }
                 ]
               },
             ].map((column) => (
@@ -792,7 +792,7 @@ const Index = () => {
 
           <div className="border-t border-border/50 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-muted-foreground text-sm">
-              © 2025 AgriSphere AI. All rights reserved.
+              {t('home.footer.copyright')}
             </p>
             <div className="flex gap-4">
               {[Users, Shield, Brain].map((Icon, i) => (

@@ -1,0 +1,58 @@
+{
+  "translation": {
+    "marketplace": {
+      "advisory": {
+        "steps": {
+          "s1": {
+            "title": "Step 1: Seed Selection & Sowing",
+            "subtitle": "Foundation for a good harvest"
+          },
+          "s2": {
+            "title": "Step 2: Growth & Nutrition",
+            "subtitle": "Optimizing crop development"
+          },
+          "s3": {
+            "title": "Step 3: Harvest Planning",
+            "subtitle": "Timing your harvest perfectly"
+          },
+          "s4": {
+            "title": "Step 4: Market Intelligence",
+            "subtitle": "Maximize your profits"
+          }
+        },
+        "voice": {
+          "title": "AI Audio Advisory",
+          "desc": "Listen to the detailed market roadmap in your language.",
+          "playing": "Playing Audio...",
+          "stop": "Stop Advisory"
+        }
+      },
+      "listings": {
+        "priceSort": "Sort by Price",
+        "lowToHigh": "Low to High",
+        "highToLow": "High to Low",
+        "newest": "Newest First",
+        "listingPosted": "Listing posted successfully!",
+        "listingError": "Failed to post listing."
+      },
+      "trends": {
+        "title": "AI-Driven Market Intelligence",
+        "desc": "Real-time analysis of crop prices, supply trends, and demand forecasts.",
+        "selectState": "Select State for Prices",
+        "livePrices": "Live Market Prices (15 Min Update)",
+        "msp": "Current MSP",
+        "avgMarket": "Avg. Market",
+        "forecast": "Trend Forecast",
+        "risk": "Risk Level",
+        "stable": "Stable",
+        "bullish": "Bullish",
+        "bearish": "Bearish"
+      },
+      "demands": {
+        "title": "Live Buyer Demands",
+        "desc": "Buyers actively looking for produce in your region.",
+        "verified": "Verified"
+      }
+    }
+  }
+}

@@ -125,7 +125,7 @@ class AgriVoiceAssistant:
             }
         }
     
-    def process_voice_input(self, text, language_code="en-IN"):
+    def process_voice_input(self, text, language_code="en-IN", dialect="Standard"):
         """Process voice input and generate appropriate response"""
         text = text.lower().strip()
         
@@ -133,7 +133,7 @@ class AgriVoiceAssistant:
         text = self.normalize_text(text)
         
         # Identify query type and generate response
-        response = self.generate_response(text, language_code)
+        response = self.generate_response(text, language_code, dialect)
         
         return response
     
@@ -143,16 +143,13 @@ class AgriVoiceAssistant:
         text = text.replace('?', ' ').replace('.', ' ').replace(',', ' ').replace('!', ' ')
         return text.strip()
     
-    def generate_response(self, text, language_code="en-IN"):
+    def generate_response(self, text, language_code="en-IN", dialect="Standard"):
         """Generate appropriate agricultural response"""
         
-        # 1. Direct Crop + Intent Check (Local Fast Path)
-        # Bypassed for now to prioritize AI flexibility with languages
-        
-        # 2. General Fallback to Groq AI
-        return self.call_groq_api(text, language_code)
+        # 1. General Fallback to Groq AI
+        return self.call_groq_api(text, language_code, dialect)
 
-    def call_groq_api(self, text, language_code="en-IN"):
+    def call_groq_api(self, text, language_code="en-IN", dialect="Standard"):
         """Call Groq API for general queries with fallback"""
         if not self.client:
             return self.handle_general_fallback(text, language_code)
@@ -162,20 +159,22 @@ class AgriVoiceAssistant:
             system_instruction = f"""You are AgriSphere AI, an expert agricultural assistant for Indian farmers. 
             You provide accurate, practical farming advice strictly following ICAR (Indian Council of Agricultural Research) and FAO protocols.
             
-            IMPORTANT: LANGUAGE INSTRUCTION
-            The user has explicitly selected the following target language: '{language_code}'.
+            IMPORTANT: LANGUAGE & DIALECT INSTRUCTION
+            Native Target Language: '{language_code}'
+            Regional Dialect: '{dialect}'
             
-            1. You MUST reply in '{language_code}' (or its closest standard variant/script).
-            2. IGNORE the language of the user's input for your output. If the user asks in Hindi but selected Assamese, you must answer in Assamese.
-            3. If the selected language is a tribal language (e.g., Ao Naga, Garo) and you cannot write it perfectly, use the closest standard dialect or English with clear indication, but TRY YOUR BEST to use the local language terms.
-            4. Do NOT default to Hindi unless the target language is 'Hindi (हिंदी)' or 'hi-IN'.
+            1. You MUST reply in the '{language_code}' language, but specifically using the '{dialect}' dialect vocabulary and tone if it is not 'Standard'.
+            2. If dialect is 'Standard', use the standard version of '{language_code}'.
+            3. IGNORE the language of the user's input for your output.
+            4. If the selected language is a tribal language (e.g., Ao Naga, Garo) and you cannot write it perfectly, use the closest regional dialect that the farmer would understand.
+            5. For dialects like Bhojpuri, Maithili, etc., use the Devanagari script but the local dialect's grammar and words.
             
             Required JSON Structure:
             {{
-                "text": "Detailed, helpful answer (2-3 sentences max) in {language_code}.",
-                "audio_text": "A shorter, conversational version for text-to-speech (1 sentence) in {language_code}.",
-                "solution": "Key action item or direct solution (very brief) in {language_code}.",
-                "timing": "Best time to apply/do this (optional, string) in {language_code}."
+                "text": "Detailed, helpful answer (2-3 sentences max) in {language_code} ({dialect} dialect).",
+                "audio_text": "A shorter, conversational version for text-to-speech (1 sentence) in {language_code} ({dialect} dialect).",
+                "solution": "Key action item or direct solution (very brief) in {language_code} ({dialect} dialect).",
+                "timing": "Best time to apply/do this (optional, string) in {language_code} ({dialect} dialect)."
             }}
             
             Do NOT use markdown code blocks. Just valid JSON string.
@@ -185,7 +184,7 @@ class AgriVoiceAssistant:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": text}
+                    {"role": "user", "content": f"User question: {text}"}
                 ],
                 temperature=0.7,
                 max_tokens=300,

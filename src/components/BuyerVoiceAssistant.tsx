@@ -4,6 +4,8 @@ import { Loader2, Volume2, StopCircle, Pause, Play, Globe } from "lucide-react";
 import { simplifyTextForFarmer, stopSpeech } from "@/services/voiceService";
 import { toast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDialect } from "@/lib/use-dialect";
+import { useTranslation } from "react-i18next";
 
 interface BuyerVoiceAssistantProps {
     insight: any; // Using any for flexibility with the complex insight object
@@ -12,10 +14,12 @@ interface BuyerVoiceAssistantProps {
 }
 
 export const BuyerVoiceAssistant: React.FC<BuyerVoiceAssistantProps> = ({ insight, crop, state }) => {
+    const { i18n } = useTranslation();
+    const { dialect, localize } = useDialect();
     const [isLoading, setIsLoading] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [language, setLanguage] = useState<"Hindi" | "English">("English");
+    const [language, setLanguage] = useState<"Hindi" | "English" | "Regional">("English");
     const [currentUtterance, setCurrentUtterance] = useState<SpeechSynthesisUtterance | null>(null);
 
     // Stop speech on unmount
@@ -57,9 +61,11 @@ export const BuyerVoiceAssistant: React.FC<BuyerVoiceAssistantProps> = ({ insigh
             const rawScript = constructScript();
 
             let finalScript = rawScript;
-            if (language === "Hindi") {
+            if (language === "Regional" || (language === "Hindi" && dialect !== "Standard")) {
+                toast({ description: `Translating to ${dialect}...` });
+                finalScript = await localize(rawScript);
+            } else if (language === "Hindi") {
                 toast({ description: "Translating to Hindi..." });
-                // Use the existing service which essentially prompts AI to explain/translate
                 finalScript = await simplifyTextForFarmer(rawScript, "Hindi");
             }
 
@@ -109,6 +115,7 @@ export const BuyerVoiceAssistant: React.FC<BuyerVoiceAssistantProps> = ({ insigh
                 <SelectContent>
                     <SelectItem value="English">English</SelectItem>
                     <SelectItem value="Hindi">Hindi</SelectItem>
+                    {dialect !== "Standard" && <SelectItem value="Regional">{dialect}</SelectItem>}
                 </SelectContent>
             </Select>
 

@@ -2,17 +2,32 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, TrendingUp, TrendingDown, Minus, IndianRupee, Clock, Sprout, Search, ChevronDown, Volume2, Phone, MapPin, User, AlertTriangle, Pause, Play, Square, Lightbulb, ArrowUpRight, ArrowDownRight, Info } from "lucide-react";
+import { 
+  Calendar as CalendarIcon, TrendingUp, TrendingDown, Minus, IndianRupee, Clock, Sprout, 
+  Search, ChevronDown, Volume2, Phone, MapPin, User, AlertTriangle, Pause, Play, 
+  Square, Lightbulb, ArrowUpRight, ArrowDownRight, Info, CheckCircle2, MessageSquare, ArrowRight
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -48,6 +63,7 @@ import {
 } from "recharts";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useTranslation } from "react-i18next";
+import { useDialect } from "@/lib/use-dialect";
 
 // Comprehensive District Mapping
 const DISTRICTS: Record<string, string[]> = {
@@ -91,13 +107,19 @@ const DISTRICTS: Record<string, string[]> = {
 
 const Marketplace = () => {
   const { t, i18n } = useTranslation();
+  const { dialect, localize } = useDialect();
   const { addNotification } = useNotificationStore();
   const [date, setDate] = useState<Date>();
-  // ... (omitting lengthy details for clarity in tool call, matching exact start of component)
+  
+  // User Profile Sim (for proximity/verification)
+  const [userProfile] = useState({
+    name: "Muskan",
+    location: "Samastipur, Bihar",
+    district: "Samastipur",
+    state: "Bihar",
+    isVerified: true
+  });
 
-  // ... INSIDE handlePostListing ...
-  // I will not replace the whole component, just the handlePostListing function via careful targeting or if possible, the whole block if I have context.
-  // Actually, let's target the function start and end to be safe.
   const [crop, setCrop] = useState<string>("");
   const [acres, setAcres] = useState<string>("1");
   const [state, setState] = useState<string>("");
@@ -118,8 +140,19 @@ const Marketplace = () => {
     cropName: "",
     quantity: "",
     price: "",
-    location: "" // State/City
+    state: "",
+    district: "",
+    logistics_partner: true
   });
+
+  // Negotiation State
+  const [sentNegotiations, setSentNegotiations] = useState<any[]>([]);
+  const [receivedNegotiations, setReceivedNegotiations] = useState<any[]>([]);
+  const [isNegOpen, setIsNegOpen] = useState(false);
+  const [negTarget, setNegTarget] = useState<any>(null);
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerMsg, setOfferMsg] = useState("");
+  const [negSubmitting, setNegSubmitting] = useState(false);
 
   // Demands State
   const [demands, setDemands] = useState<any[]>([]);
@@ -142,27 +175,79 @@ const Marketplace = () => {
     }
   };
 
+  const fetchNegotiations = async () => {
+    try {
+      // Fetch offers sent by current user (Buyer role)
+      const sentRes = await axios.get(`http://localhost:5000/negotiations?buyerName=${userProfile.name}`);
+      setSentNegotiations(sentRes.data);
+      
+      // Fetch offers received by current user (Farmer role)
+      const receivedRes = await axios.get(`http://localhost:5000/negotiations?sellerName=${userProfile.name}`);
+      setReceivedNegotiations(receivedRes.data);
+    } catch (err) {
+      console.error("Failed to fetch negotiations", err);
+    }
+  };
+
+  const handleUpdateNegotiationStatus = async (id: string, status: 'Accepted' | 'Rejected') => {
+    try {
+      await axios.patch("http://localhost:5000/negotiations", { id, status });
+      toast({ 
+        title: t('marketplace.listings.negotiations.statusUpdated'), 
+        description: status === 'Accepted' ? "You have accepted the offer." : "You have rejected the offer." 
+      });
+      fetchNegotiations();
+    } catch (err) {
+      toast({ title: t('common.error'), description: "Failed to update offer status.", variant: "destructive" });
+    }
+  };
+
   const handlePostListing = async () => {
-    if (!newListing.farmerName || !newListing.contactNumber || !newListing.cropName || !newListing.quantity || !newListing.price || !newListing.location) {
-      toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
+    if (!newListing.farmerName || !newListing.contactNumber || !newListing.cropName || !newListing.quantity || !newListing.price || !newListing.state || !newListing.district) {
+      toast({ title: t('common.error'), description: t('marketplace.listings.fillAllFields'), variant: "destructive" });
       return;
     }
 
     try {
       await axios.post("http://localhost:5000/listings", newListing);
-      toast({ title: "Success", description: "Listing posted successfully!" });
+      toast({ title: t('common.success'), description: t('marketplace.listings.listingPosted') });
 
-      // Trigger Notification
       addNotification({
         type: 'market',
-        title: 'Listing Live',
-        message: `Your ${newListing.cropName} is now listed for ₹${newListing.price}/kg.`
+        title: t('marketplace.listings.listingLive'),
+        message: t('marketplace.listings.listingLiveMsg', { crop: newListing.cropName, price: newListing.price })
       });
 
-      setNewListing({ farmerName: "", contactNumber: "", cropName: "", quantity: "", price: "", location: "" });
-      fetchListings(); // Refresh
+      setNewListing({ farmerName: "", contactNumber: "", cropName: "", quantity: "", price: "", state: "", district: "", logistics_partner: true });
+      fetchListings();
     } catch (err) {
-      toast({ title: "Error", description: "Failed to post listing", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('marketplace.listings.listingError'), variant: "destructive" });
+    }
+  };
+
+  const handleMakeOffer = async () => {
+    if (!offerPrice) return;
+    setNegSubmitting(true);
+    try {
+      await axios.post("http://localhost:5000/negotiations", {
+        listingId: negTarget.id,
+        buyerId: "user_123",
+        buyerName: userProfile.name,
+        sellerName: negTarget.farmerName,
+        offerPrice: parseFloat(offerPrice),
+        originalPrice: negTarget.price,
+        crop: negTarget.cropName,
+        message: offerMsg,
+      });
+      toast({ title: "Offer Sent!", description: `Your counter-offer for ${negTarget.cropName} has been submitted.` });
+      setIsNegOpen(false);
+      setOfferPrice("");
+      setOfferMsg("");
+      fetchNegotiations();
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to send offer.", variant: "destructive" });
+    } finally {
+      setNegSubmitting(false);
     }
   };
 
@@ -174,6 +259,13 @@ const Marketplace = () => {
     const matchesSearch = l.cropName.toLowerCase().includes(filters.search.toLowerCase());
     const matchesState = filters.state ? l.location.toLowerCase().includes(filters.state.toLowerCase()) : true;
     return matchesSearch && matchesState;
+  }).sort((a, b) => {
+    // Sort by proximity (District match first)
+    const aNearby = a.district === userProfile.district;
+    const bNearby = b.district === userProfile.district;
+    if (aNearby && !bNearby) return -1;
+    if (!aNearby && bNearby) return 1;
+    return 0;
   });
 
   // Market Prices State
@@ -189,7 +281,7 @@ const Marketplace = () => {
 
   const fetchMarketPrices = async () => {
     if (!priceFilters.state || !priceFilters.district) {
-      toast({ title: "Details Missing", description: "Please enter State and District", variant: "destructive" });
+      toast({ title: t('marketplace.trends.detailsMissing'), description: t('marketplace.trends.enterStateDistrict'), variant: "destructive" });
       return;
     }
     setPricesLoading(true);
@@ -205,9 +297,9 @@ const Marketplace = () => {
         setMarketPrices(Array.isArray(res.data) ? res.data : []);
       }
 
-      toast({ title: "Updated", description: "Market rates and insights fetched." });
+      toast({ title: t('marketplace.trends.updated'), description: t('marketplace.trends.fetched') });
     } catch (err) {
-      toast({ title: "Error", description: "Failed to fetch prices", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('marketplace.trends.fetchError'), variant: "destructive" });
     } finally {
       setPricesLoading(false);
     }
@@ -216,8 +308,8 @@ const Marketplace = () => {
   const handleAnalyze = async () => {
     if (!crop || !date || !state) {
       toast({
-        title: "Missing Information",
-        description: "Please select a crop, state, and sowing date.",
+        title: t('marketplace.advisory.missingInfo'),
+        description: t('marketplace.advisory.selectPrompt'),
         variant: "destructive",
       });
       return;
@@ -237,16 +329,36 @@ const Marketplace = () => {
         state: state
       });
 
-      setResult(response.data);
+      // DYNAMIC DIALECT LOCALIZATION
+      const rawResult = response.data;
+      if (dialect !== 'Standard') {
+        toast({ title: t('common.localizing'), description: t('common.dialectTransform', { dialect }) });
+        
+        // Localize main fields
+        for (let stage of ['stage_1', 'stage_2', 'stage_3', 'stage_4']) {
+          if (rawResult[stage]) {
+            // Localize summaries and descriptions
+            // This is a partial list of fields to localize
+            const fieldsToLocalize = ['recommended_technique', 'seed_treatment', 'fertilizer_plan', 'irrigation_schedule', 'pest_protection', 'harvest_signs', 'post_harvest_care'];
+            for (let field of fieldsToLocalize) {
+               if (rawResult[stage][field]) {
+                 rawResult[stage][field] = await localize(rawResult[stage][field], state);
+               }
+            }
+          }
+        }
+      }
+
+      setResult(rawResult);
       toast({
-        title: "Analysis Complete",
-        description: `Market intelligence report generated for ${state}.`,
+        title: t('marketplace.advisory.analysisComplete'),
+        description: t('marketplace.advisory.reportGenerated', { state }),
       });
     } catch (error) {
       console.error("Market analysis error:", error);
       toast({
-        title: "Analysis Failed",
-        description: "Could not fetch market data. Ensure server is running.",
+        title: t('marketplace.advisory.analysisFailed'),
+        description: t('marketplace.advisory.fetchError'),
         variant: "destructive",
       });
     } finally {
@@ -314,6 +426,7 @@ const Marketplace = () => {
   useEffect(() => {
     fetchListings();
     fetchDemands();
+    fetchNegotiations();
   }, []);
 
   return (
@@ -362,7 +475,7 @@ const Marketplace = () => {
                       <span className="text-[10px] text-muted-foreground">{demand.timestamp?.split(' ')[0]}</span>
                     </div>
                     <CardTitle className="text-xl text-slate-800">{demand.crop}</CardTitle>
-                    <CardDescription>Required by {demand.buyerName}</CardDescription>
+                    <CardDescription>{t('common.requiredBy')} {demand.buyerName}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -377,7 +490,7 @@ const Marketplace = () => {
                     </div>
                     {demand.location && (
                       <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <MapPin className="w-3 h-3" /> Location Preference: {demand.location}
+                        <MapPin className="w-3 h-3" /> {t('marketplace.demands.locationPref')}: {demand.location}
                       </div>
                     )}
                     <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2">
@@ -412,7 +525,7 @@ const Marketplace = () => {
                     <SelectContent>
                       <SelectItem value="rice">{t('common.crops.rice')}</SelectItem>
                       <SelectItem value="wheat">{t('common.crops.wheat')}</SelectItem>
-                      <SelectItem value="cotton">Cotton</SelectItem>
+                      <SelectItem value="cotton">{t('common.crops.cotton')}</SelectItem>
                       <SelectItem value="maize">{t('common.crops.maize')}</SelectItem>
                       <SelectItem value="tomato">{t('common.crops.tomato')}</SelectItem>
                       <SelectItem value="potato">{t('common.crops.potato')}</SelectItem>
@@ -499,7 +612,7 @@ const Marketplace = () => {
                   {result.seasonality_check && result.seasonality_check.is_valid === false && (
                     <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-900">
                       <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Seasonality Warning</AlertTitle>
+                      <AlertTitle>{t('marketplace.alerts.seasonality')}</AlertTitle>
                       <AlertDescription>
                         {result.seasonality_check.message}
                       </AlertDescription>
@@ -528,7 +641,7 @@ const Marketplace = () => {
                             className={cn("text-xs transition-colors", playingId === 'stage1-en' && "bg-green-100 border-green-300")}
                           >
                             {playingId === 'stage1-en' && !isPaused ? <Pause className="w-3 h-3 mr-1" /> : <Volume2 className="w-3 h-3 mr-1" />}
-                            English
+                            {t('marketplace.langEn')}
                           </Button>
                           <Button
                             variant="outline"
@@ -537,7 +650,7 @@ const Marketplace = () => {
                             className={cn("text-xs transition-colors", playingId === 'stage1-hi' && "bg-green-100 border-green-300")}
                           >
                             {playingId === 'stage1-hi' && !isPaused ? <Pause className="w-3 h-3 mr-1" /> : <Volume2 className="w-3 h-3 mr-1" />}
-                            हिंदी
+                            {t('marketplace.langHi')}
                           </Button>
                           {(playingId === 'stage1-en' || playingId === 'stage1-hi') && (
                             <Button variant="ghost" size="sm" onClick={stopAudio} className="text-red-500 hover:text-red-700 hover:bg-red-50">
@@ -548,7 +661,7 @@ const Marketplace = () => {
                         <div className="grid md:grid-cols-2 gap-6 mt-2">
                           <div>
                             <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-2">
-                              <Sprout className="w-4 h-4" /> Recommended Varieties
+                              <Sprout className="w-4 h-4" /> {t('marketplace.advisory.results.varieties')}
                             </h4>
                             <ul className="list-disc ml-5 text-sm space-y-1 text-gray-700">
                               {result.stage_1?.seed_varieties?.map((v: string, i: number) => (
@@ -557,10 +670,10 @@ const Marketplace = () => {
                             </ul>
                           </div>
                           <div>
-                            <h4 className="font-semibold text-green-700 mb-2">Sowing Technique</h4>
+                            <h4 className="font-semibold text-green-700 mb-2">{t('marketplace.advisory.results.technique')}</h4>
                             <p className="text-sm leading-relaxed text-gray-700">{result.stage_1?.recommended_technique}</p>
                             <div className="mt-4 text-xs bg-green-50 p-3 rounded-lg text-green-800 border border-green-200">
-                              <strong>💡 Pro Tip:</strong> {result.stage_1?.seed_treatment}
+                              <strong>💡 {t('marketplace.advisory.results.proTip')}:</strong> {result.stage_1?.seed_treatment}
                             </div>
                           </div>
                         </div>
@@ -606,14 +719,14 @@ const Marketplace = () => {
                         </div>
                         <div className="grid md:grid-cols-2 gap-6 mt-2">
                           <div>
-                            <h4 className="font-semibold text-blue-700 mb-2">Fertilizer Schedule</h4>
+                            <h4 className="font-semibold text-blue-700 mb-2">{t('marketplace.advisory.results.fertilizer')}</h4>
                             <p className="text-sm leading-relaxed text-gray-700">{result.stage_2?.fertilizer_plan}</p>
                           </div>
                           <div>
-                            <h4 className="font-semibold text-blue-700 mb-2">Irrigation Plan</h4>
+                            <h4 className="font-semibold text-blue-700 mb-2">{t('marketplace.advisory.results.irrigation')}</h4>
                             <p className="text-sm leading-relaxed text-gray-700">{result.stage_2?.irrigation_schedule}</p>
                             <div className="mt-4 text-xs bg-red-50 p-3 rounded-lg text-red-800 border-l-4 border-red-500">
-                              <strong>⚠️ Pest Alert:</strong> {result.stage_2?.pest_protection}
+                              <strong>⚠️ {t('marketplace.advisory.results.pestAlert')}:</strong> {result.stage_2?.pest_protection}
                             </div>
                           </div>
                         </div>
@@ -661,18 +774,18 @@ const Marketplace = () => {
                           <div className="bg-slate-900 text-white p-6 rounded-lg shadow-lg">
                             <div className="flex items-center gap-3 mb-4">
                               <Clock className="w-6 h-6 text-yellow-400" />
-                              <span className="font-bold text-2xl text-yellow-50">{result.stage_3?.days_remaining} Days Left</span>
+                              <span className="font-bold text-2xl text-yellow-50">{result.stage_3?.days_remaining} {t('marketplace.advisory.results.daysLeft')}</span>
                             </div>
                             <div className="text-sm text-slate-300">
-                              <span className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Harvest Window</span>
+                              <span className="block text-xs uppercase tracking-wider text-slate-500 mb-1">{t('marketplace.advisory.results.harvestWindow')}</span>
                               <span className="text-lg font-medium text-white">{result.stage_3?.harvest_window}</span>
                             </div>
                           </div>
                           <div>
-                            <h4 className="font-semibold text-yellow-700 mb-2">Maturity Signs</h4>
+                            <h4 className="font-semibold text-yellow-700 mb-2">{t('marketplace.advisory.results.maturitySigns')}</h4>
                             <p className="text-sm leading-relaxed text-gray-700">{result.stage_3?.harvest_signs}</p>
                             <div className="mt-4 text-xs bg-yellow-50 p-3 rounded-lg text-yellow-800 border border-yellow-200">
-                              <strong>🚜 Post-Harvest:</strong> {result.stage_3?.post_harvest_care}
+                              <strong>🚜 {t('marketplace.advisory.results.postHarvest')}:</strong> {result.stage_3?.post_harvest_care}
                             </div>
                           </div>
                         </div>
@@ -754,17 +867,17 @@ const Marketplace = () => {
 
                         <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
                           <div className="flex-1">
-                            <div className="text-sm text-green-700 font-semibold mb-1 uppercase tracking-wide">Recommended Mandi</div>
+                            <div className="text-sm text-green-700 font-semibold mb-1 uppercase tracking-wide">{t('marketplace.advisory.results.recommendedMandi')}</div>
                             <div className="text-xl font-bold text-green-900 flex items-center gap-2">
                               📍 {result.stage_4?.best_mandi}
                             </div>
-                            <p className="text-xs text-green-600 mt-1">Best real value in {state}</p>
+                            <p className="text-xs text-green-600 mt-1">{t('marketplace.advisory.results.bestValue')} {state}</p>
                           </div>
                           <Button
                             className="bg-green-700 hover:bg-green-800 whitespace-nowrap w-full md:w-auto shadow-md"
                             onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.stage_4?.best_mandi + ' Mandi ' + state)}`, '_blank')}
                           >
-                            Sell Here
+                            {t('marketplace.advisory.results.sellHere')}
                           </Button>
                         </div>
                       </AccordionContent>
@@ -791,6 +904,67 @@ const Marketplace = () => {
           <div className="flex flex-col md:flex-row gap-6">
             {/* Sidebar / Filters */}
             <div className="w-full md:w-1/4 space-y-4">
+              {/* NEW: Logistics & Value Proposition Card */}
+              <Card className="bg-gradient-to-br from-indigo-900 to-slate-900 border-indigo-500/30 text-white shadow-xl overflow-hidden relative group">
+                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-16 h-16" />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    {t('marketplace.whyBuy', { defaultValue: 'Why Buy on AgriSphere?' })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-1">
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-3 text-xs">
+                      <div className="bg-green-500/20 p-1 rounded text-green-400">₹</div>
+                      <div>
+                        <span className="font-bold">Save 15-20%</span>
+                        <p className="text-slate-400">By cutting out Mandi middlemen commissions.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 text-xs">
+                      <div className="bg-blue-500/20 p-1 rounded text-blue-400">📍</div>
+                      <div>
+                        <span className="font-bold">Zero Travel Cost</span>
+                        <p className="text-slate-400">Product reaches you via local village transporters.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-xs">
+                    <h5 className="font-bold text-indigo-300 mb-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {t('marketplace.localLogistics', { defaultValue: 'Local Logistics Model' })}
+                    </h5>
+                    <p className="text-slate-300 leading-relaxed text-[10px]">
+                      We use local **Samastipur** pickup drivers already traveling this route. Lower cost than Mandi travel!
+                    </p>
+                  </div>
+
+                  <Button variant="outline" className="w-full border-indigo-400/50 text-indigo-300 hover:bg-indigo-500/20 text-[10px] h-8">
+                    Learn about Delivery
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* NEW: Join as Transporter Banner */}
+              <Card className="bg-orange-50 border-orange-200 overflow-hidden group">
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm font-bold text-orange-800 flex items-center gap-2">
+                    <User className="w-4 h-4" /> {t('marketplace.joinTransporter', { defaultValue: 'Have a Tractor/Truck?' })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 pb-4">
+                  <p className="text-[10px] text-orange-700/80 mb-3 leading-snug">
+                    Register as a **Verified AgriTransporter** and earn by delivering crops to buyers in Bihar.
+                  </p>
+                  <Button size="sm" className="w-full bg-orange-600 hover:bg-orange-700 text-white text-xs h-8">
+                    Join Delivery Network
+                  </Button>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>{t('marketplace.listings.filters')}</CardTitle>
@@ -808,12 +982,12 @@ const Marketplace = () => {
                   <Select onValueChange={(val) => setFilters(prev => ({ ...prev, state: val === 'all' ? '' : val }))}>
                     <SelectTrigger><SelectValue placeholder={t('marketplace.advisory.selectState')} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{t('buyer.filters.allStates')}</SelectItem>
-                      <SelectItem value="bihar">Bihar</SelectItem>
-                      <SelectItem value="uttar pradesh">Uttar Pradesh</SelectItem>
-                      <SelectItem value="punjab">Punjab</SelectItem>
-                      <SelectItem value="haryana">Haryana</SelectItem>
-                      <SelectItem value="madhya pradesh">Madhya Pradesh</SelectItem>
+                      <SelectItem value="all">{t('common.all', { defaultValue: 'All States' })}</SelectItem>
+                      <SelectItem value="bihar">{t('marketplace.states.bihar')}</SelectItem>
+                      <SelectItem value="uttar pradesh">{t('marketplace.states.uttarPradesh')}</SelectItem>
+                      <SelectItem value="punjab">{t('marketplace.states.punjab')}</SelectItem>
+                      <SelectItem value="haryana">{t('marketplace.states.haryana')}</SelectItem>
+                      <SelectItem value="madhya pradesh">{t('marketplace.states.madhyaPradesh')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </CardContent>
@@ -822,19 +996,19 @@ const Marketplace = () => {
               <Card className="bg-slate-900 border-slate-800 shadow-xl">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <User className="w-5 h-5 text-green-400" /> {t('marketplace.listings.postBtn')}
+                    <User className="w-5 h-5 text-green-400" /> {t('marketplace.listings.form.postTitle')}
                   </CardTitle>
-                  <CardDescription className="text-slate-400">Reach 10,000+ verified buyers</CardDescription>
+                  <CardDescription className="text-slate-400">{t('marketplace.listings.form.postSubtitle')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Input
-                    placeholder="Your Name"
+                    placeholder={t('marketplace.listings.form.name')}
                     value={newListing.farmerName}
                     onChange={(e) => setNewListing({ ...newListing, farmerName: e.target.value })}
                     className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
                   />
                   <Input
-                    placeholder="Contact Number (10 digits)"
+                    placeholder={t('marketplace.listings.form.contact')}
                     type="tel"
                     maxLength={10}
                     value={newListing.contactNumber}
@@ -842,7 +1016,7 @@ const Marketplace = () => {
                     className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
                   />
                   <Input
-                    placeholder="Crop Name (e.g. Wheat)"
+                    placeholder={t('marketplace.listings.form.crop')}
                     value={newListing.cropName}
                     onChange={(e) => setNewListing({ ...newListing, cropName: e.target.value })}
                     className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
@@ -850,14 +1024,14 @@ const Marketplace = () => {
 
                   <div className="grid grid-cols-2 gap-2">
                     <Input
-                      placeholder="Qty (Q)"
+                      placeholder={t('marketplace.listings.form.qty')}
                       type="number"
                       value={newListing.quantity}
                       onChange={(e) => setNewListing({ ...newListing, quantity: e.target.value })}
                       className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
                     />
                     <Input
-                      placeholder="Price/Q"
+                      placeholder={t('marketplace.listings.form.price')}
                       type="number"
                       value={newListing.price}
                       onChange={(e) => setNewListing({ ...newListing, price: e.target.value })}
@@ -865,21 +1039,46 @@ const Marketplace = () => {
                     />
                   </div>
 
-                  <Select onValueChange={(val) => setNewListing({ ...newListing, location: val })}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                      <SelectValue placeholder="Select State" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Bihar">Bihar</SelectItem>
-                      <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
-                      <SelectItem value="Punjab">Punjab</SelectItem>
-                      <SelectItem value="Haryana">Haryana</SelectItem>
-                      <SelectItem value="Madhya Pradesh">Madhya Pradesh</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 uppercase font-bold">{t('marketplace.advisory.state')}</label>
+                      <Select value={newListing.state} onValueChange={(val) => setNewListing({ ...newListing, state: val, district: '' })}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white text-xs h-9">
+                          <SelectValue placeholder="State" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {Object.keys(DISTRICTS).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 uppercase font-bold">{t('marketplace.advisory.district')}</label>
+                      <Select value={newListing.district} onValueChange={(val) => setNewListing({ ...newListing, district: val })} disabled={!newListing.state}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white text-xs h-9">
+                          <SelectValue placeholder="District" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {(newListing.state && DISTRICTS[newListing.state] ? DISTRICTS[newListing.state] : []).map(d => (
+                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold mt-2" onClick={handlePostListing}>
-                    {t('marketplace.listings.postBtn')}
+                  <div className="flex items-center space-x-2 bg-slate-800/50 p-2 rounded border border-slate-700">
+                    <Checkbox 
+                      id="logistics" 
+                      checked={newListing.logistics_partner} 
+                      onCheckedChange={(checked) => setNewListing({...newListing, logistics_partner: !!checked})}
+                    />
+                    <label htmlFor="logistics" className="text-xs text-slate-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Include AgriLogistics Partner Support
+                    </label>
+                  </div>
+
+                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold mt-2 shadow-lg shadow-green-900/40" onClick={handlePostListing}>
+                    📢 {t('marketplace.listings.form.submit')}
                   </Button>
                 </CardContent>
               </Card>
@@ -889,52 +1088,139 @@ const Marketplace = () => {
             <div className="w-full md:w-3/4">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredListings.length > 0 ? (
-                  filteredListings.map((item) => (
-                    <Card key={item.id} className="hover:shadow-lg transition-all duration-300 border-green-100 group">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <div className="bg-green-100 text-green-800 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse"></span> VERIFIED FARMER
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">{item.timestamp?.split(' ')[0]}</span>
-                        </div>
-                        <CardTitle className="mt-2 text-lg font-extrabold text-green-800 capitalize tracking-tight">{item.cropName}</CardTitle>
-                        <CardDescription className="flex items-center gap-1 text-xs">
-                          <MapPin className="w-3 h-3" /> {item.location}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex justify-between items-end mb-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
-                          <div>
-                            <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('buyer.card.quantity')}</div>
-                            <div className="font-bold text-white">{item.quantity} Q</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('buyer.card.price')}</div>
-                            <div className="font-bold text-green-400 text-lg">₹{item.price}/Q</div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="text-xs text-slate-500 font-medium">Sold by: {item.farmerName}</div>
-
-                          {contactVisible[item.id] ? (
-                            <div className="w-full bg-green-50 border border-green-200 text-green-800 font-bold text-center py-2 rounded-md animate-in fade-in zoom-in duration-300 flex items-center justify-center gap-2">
-                              <Phone className="w-4 h-4" /> {item.contactNumber}
+                  filteredListings.map((item) => {
+                    const isNearby = item.district === userProfile.district;
+                    return (
+                      <Card key={item.id} className={cn("hover:shadow-lg transition-all duration-300 border-green-100 group", isNearby && "border-primary/50 bg-primary/5 shadow-md shadow-primary/10")}>
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="flex flex-wrap gap-1">
+                              {isNearby && (
+                                <Badge className="bg-primary text-white text-[10px] animate-pulse">
+                                  📍 {t('marketplace.proximity.nearby', { district: userProfile.district })}
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="bg-green-100 text-green-800 text-[10px] border-green-200">
+                                ✓ {t('marketplace.demands.verified')}
+                              </Badge>
+                              {item.logistics_partner && (
+                                <Badge variant="outline" className="bg-blue-100 text-blue-800 text-[10px] border-blue-200">
+                                  🚚 {t('marketplace.logistics.partner', { defaultValue: 'AgriLogistics' })}
+                                </Badge>
+                              )}
                             </div>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              className="w-full border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800"
-                              onClick={() => toggleContact(item.id)}
-                            >
-                              <Phone className="w-4 h-4 mr-2" /> {t('marketplace.listings.contactFarmer') || "Contact Farmer"}
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                            <span className="text-[10px] text-muted-foreground">{item.timestamp?.split(' ')[0]}</span>
+                          </div>
+                          <CardTitle className="mt-1 text-lg font-extrabold text-green-800 capitalize tracking-tight">{item.cropName}</CardTitle>
+                          <CardDescription className="flex items-center gap-1 text-xs">
+                            <MapPin className="w-3 h-3 text-primary" /> {item.location}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex justify-between items-end mb-2 bg-slate-900 p-3 rounded-lg border border-slate-800">
+                            <div>
+                              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('buyer.card.quantity')}</div>
+                              <div className="font-bold text-white">{item.quantity} Q</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('buyer.card.price')}</div>
+                              <div className="font-bold text-green-400 text-lg">₹{item.price}/Q</div>
+                            </div>
+                          </div>
+
+                          {/* Mandi Price Comparison Badge */}
+                          <div className="flex items-center justify-between px-2 py-1.5 mb-4 bg-yellow-50 rounded-md border border-yellow-100 text-[10px]">
+                            <div className="text-yellow-700 font-semibold flex items-center gap-1">
+                              📉 <span className="line-through">Mandi: ₹{(parseFloat(item.price) * 1.15).toFixed(0)}</span>
+                            </div>
+                            <div className="text-green-700 font-bold bg-green-100 px-1.5 py-0.5 rounded">
+                              Save ₹{(parseFloat(item.price) * 0.15).toFixed(0)}/Q here
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center mb-1">
+                              <div className="text-xs text-slate-500 font-medium">{t('common.soldBy')}: {item.farmerName}</div>
+                              {item.verified && (
+                                <div className="flex items-center gap-1 text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">
+                                  🌟 {t('marketplace.verifiedSeller', { defaultValue: 'Verified Seller' })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              {contactVisible[item.id] ? (
+                                <div className="col-span-2 bg-green-50 border border-green-200 text-green-800 font-bold text-center py-2 rounded-md animate-in fade-in zoom-in duration-300 flex items-center justify-center gap-2">
+                                  <Phone className="w-4 h-4" /> {item.contactNumber}
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  className="w-full border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800 text-xs h-9"
+                                  onClick={() => toggleContact(item.id)}
+                                >
+                                  <Phone className="w-3 h-3 mr-1" /> {t('marketplace.listings.contactFarmer')}
+                                </Button>
+                              )}
+                              
+                              {item.farmerName.toLowerCase() !== userProfile.name.toLowerCase() && (
+                                <Dialog open={isNegOpen && negTarget?.id === item.id} onOpenChange={(open) => {
+                                  setIsNegOpen(open);
+                                  if (open) setNegTarget(item);
+                                }}>
+                                  <DialogTrigger asChild>
+                                    <Button className="w-full bg-slate-900 text-white hover:bg-black text-xs h-9 gap-1">
+                                      🤝 {t('marketplace.negotiate', { defaultValue: 'Negotiate' })}
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>{t('marketplace.listings.negotiate.title', { crop: item.cropName })}</DialogTitle>
+                                      <DialogDescription>
+                                        {t('marketplace.listings.negotiate.desc', { seller: item.farmerName })}
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="price" className="text-right">Price/Q</Label>
+                                        <div className="col-span-3 flex items-center gap-4">
+                                          <div className="text-slate-400 line-through">₹{item.price}</div>
+                                          <Input
+                                            id="price"
+                                            type="number"
+                                            placeholder="Your best offer"
+                                            className="col-span-2"
+                                            value={offerPrice}
+                                            onChange={(e) => setOfferPrice(e.target.value)}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="msg" className="text-right">Message</Label>
+                                        <Input
+                                          id="msg"
+                                          placeholder="Add a message for the farmer"
+                                          className="col-span-3"
+                                          value={offerMsg}
+                                          onChange={(e) => setOfferMsg(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+                                    <DialogFooter>
+                                      <Button variant="outline" onClick={() => setIsNegOpen(false)}>{t('common.cancel')}</Button>
+                                      <Button onClick={handleMakeOffer} disabled={negSubmitting}>
+                                        {negSubmitting ? t('common.sending') : t('marketplace.listings.negotiate.send')}
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
                 ) : (
                   <div className="col-span-full h-64 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl bg-slate-50/50">
                     <Sprout className="w-12 h-12 mb-2 text-slate-300" />
@@ -942,6 +1228,141 @@ const Marketplace = () => {
                   </div>
                 )}
               </div>
+
+              {/* Active Negotiations Hub: TWO SECTIONS (Sent & Received) */}
+              {(sentNegotiations.length > 0 || receivedNegotiations.length > 0) && (
+                <div className="mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                  
+                  {/* SECTION 1: Sent Offers (Buyer Role) */}
+                  {sentNegotiations.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <MessageSquare className="w-5 h-5 text-indigo-400" />
+                        <h3 className="text-xl font-bold text-slate-200">{t('marketplace.listings.negotiations.myOffers')}</h3>
+                        <Badge variant="secondary" className="ml-2 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">{sentNegotiations.length}</Badge>
+                      </div>
+                      
+                      <div className="grid gap-3">
+                        {sentNegotiations.map((neg) => (
+                          <Card key={neg.id} className="border-l-4 border-l-indigo-500 bg-slate-900 border-slate-800 shadow-sm hover:border-indigo-500/50 transition-all">
+                            <CardContent className="py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                  <Sprout className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-white flex items-center gap-2 text-lg">
+                                    {neg.crop} 
+                                    <ArrowRight className="w-4 h-4 text-slate-500" /> 
+                                    <span className="text-indigo-400">₹{neg.offerPrice}/Q</span>
+                                  </div>
+                                  <p className="text-xs text-slate-400 mt-0.5">{t('common.originalPrice', { defaultValue: 'Original' })}: ₹{neg.originalPrice}/Q</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-6">
+                                <div className="text-right">
+                                  <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">{t('common.status', { defaultValue: 'Status' })}</div>
+                                  <Badge 
+                                    className={cn(
+                                      "font-bold py-1 px-3",
+                                      neg.status === 'Pending' ? "bg-yellow-900/50 text-yellow-500 border-yellow-700/50" :
+                                      neg.status === 'Accepted' ? "bg-green-900/50 text-green-500 border-green-700/50" :
+                                      "bg-red-900/50 text-red-500 border-red-700/50"
+                                    )}
+                                  >
+                                    {neg.status === 'Pending' && <Clock className="w-3 h-3 mr-1 inline" />}
+                                    {neg.status === 'Accepted' && <CheckCircle2 className="w-3 h-3 mr-1 inline" />}
+                                    {neg.status === 'Rejected' && <AlertTriangle className="w-3 h-3 mr-1 inline" />}
+                                    {neg.status}
+                                  </Badge>
+                                </div>
+                                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-slate-800">
+                                  {t('common.viewDetails', { defaultValue: 'View' })}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION 2: Received Offers (Farmer/Seller Role) */}
+                  {receivedNegotiations.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b border-orange-900/50 pb-2">
+                        <TrendingUp className="w-5 h-5 text-orange-400" />
+                        <h3 className="text-xl font-bold text-slate-200">{t('marketplace.listings.negotiations.receivedOffers')}</h3>
+                        <Badge variant="secondary" className="ml-2 bg-orange-500/20 text-orange-400 border border-orange-500/30">{receivedNegotiations.length}</Badge>
+                      </div>
+                      
+                      <div className="grid gap-3">
+                        {receivedNegotiations.map((neg) => (
+                          <Card key={neg.id} className="border-l-4 border-l-orange-500 bg-slate-900 border-slate-800 shadow-sm hover:border-orange-500/50 transition-all">
+                            <CardContent className="py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400">
+                                  <User className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="font-bold text-white text-lg">
+                                    {neg.buyerName} <span className="font-normal text-slate-400 text-sm">{t('common.wantsToBuy', { defaultValue: 'wants to buy' })}</span> <span className="text-orange-400">{neg.crop}</span>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm mt-1">
+                                    <span className="text-slate-500 line-through">₹{neg.originalPrice}/Q</span>
+                                    <span className="text-green-400 font-extrabold text-xl">₹{neg.offerPrice}/Q</span>
+                                    <Badge variant="outline" className="text-[10px] bg-green-900/20 text-green-400 border-green-800 ml-2">
+                                      Save ₹{neg.originalPrice - neg.offerPrice}/Q
+                                    </Badge>
+                                  </div>
+                                  {neg.message && (
+                                    <p className="text-sm text-slate-300 mt-3 italic bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                      "{neg.message}"
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                {neg.status === 'Pending' ? (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      className="bg-green-600 hover:bg-green-700 text-white gap-2 shadow-lg shadow-green-900/20"
+                                      onClick={() => handleUpdateNegotiationStatus(neg.id, 'Accepted')}
+                                    >
+                                      <CheckCircle2 className="w-4 h-4" /> {t('marketplace.listings.negotiations.accept')}
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="border-red-900/50 text-red-500 hover:bg-red-950/50 hover:text-red-400 gap-2"
+                                      onClick={() => handleUpdateNegotiationStatus(neg.id, 'Rejected')}
+                                    >
+                                      <AlertTriangle className="w-4 h-4" /> {t('marketplace.listings.negotiations.reject')}
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Badge 
+                                    className={cn(
+                                      "font-bold py-1.5 px-4",
+                                      neg.status === 'Accepted' && "bg-green-900/50 text-green-500 border-green-700/50",
+                                      neg.status === 'Rejected' && "bg-red-900/50 text-red-500 border-red-700/50"
+                                    )}
+                                  >
+                                    {neg.status === 'Accepted' ? 'APPROVED' : 'DECLINED'}
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>
@@ -954,7 +1375,7 @@ const Marketplace = () => {
               <Card className="bg-slate-900 border-slate-800 shadow-xl">
                 <CardHeader>
                   <CardTitle className="text-xl text-white">{t('marketplace.trends.selectState')}</CardTitle>
-                  <CardDescription className="text-slate-400">Find today's mandi rates</CardDescription>
+                  <CardDescription className="text-slate-400">{t('marketplace.trends.findMandiRates', "Find today's mandi rates")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -981,52 +1402,52 @@ const Marketplace = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">District</label>
+                    <label className="text-sm font-medium text-slate-300">{t('marketplace.advisory.district')}</label>
                     <Select
                       value={priceFilters.district}
                       onValueChange={(val) => setPriceFilters({ ...priceFilters, district: val })}
                       disabled={!priceFilters.state}
                     >
                       <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                        <SelectValue placeholder="Select District" />
+                        <SelectValue placeholder={t('marketplace.advisory.selectDistrict')} />
                       </SelectTrigger>
                       <SelectContent className="max-h-[200px]">
                         {(priceFilters.state && DISTRICTS[priceFilters.state] ? DISTRICTS[priceFilters.state] : []).map(d => (
                           <SelectItem key={d} value={d}>{d}</SelectItem>
                         ))}
-                        <SelectItem value="Other">Other</SelectItem>
+                        <SelectItem value="Other">{t('common.other')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   {priceFilters.district === 'Other' && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                      <label className="text-sm font-medium text-slate-300">{t('marketplace.trends.enterDistrict') || "Enter District Name"}</label>
+                      <label className="text-sm font-medium text-slate-300">{t('marketplace.trends.enterDistrict')}</label>
                       <Input
-                        placeholder={t('marketplace.trends.typeDistrict') || "Type your district..."}
+                        placeholder={t('marketplace.trends.typeDistrict')}
                         className="bg-slate-800 border-slate-700 text-white"
                         onChange={(e) => setPriceFilters({ ...priceFilters, district: e.target.value })}
                       />
                     </div>
                   )}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">{t('marketplace.trends.category') || "Category"}</label>
+                    <label className="text-sm font-medium text-slate-300">{t('marketplace.trends.category')}</label>
                     <Select onValueChange={(val) => setPriceFilters({ ...priceFilters, category: val })} defaultValue="All">
                       <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                        <SelectValue placeholder={t('marketplace.trends.category') || "Category"} />
+                        <SelectValue placeholder={t('marketplace.trends.category')} />
                       </SelectTrigger>
                       <SelectContent className="max-h-[300px]">
-                        <SelectItem value="All">{t('marketplace.trends.allCommodities') || "All Commodities"}</SelectItem>
-                        <SelectItem value="Vegetables">{t('marketplace.trends.vegetables') || "Vegetables"}</SelectItem>
-                        <SelectItem value="Fruits">{t('marketplace.trends.fruits') || "Fruits"}</SelectItem>
-                        <SelectItem value="Cereals">{t('marketplace.trends.cereals') || "Cereals"}</SelectItem>
-                        <SelectItem value="Pulses">{t('marketplace.trends.pulses') || "Pulses"}</SelectItem>
-                        <SelectItem value="Oilseeds">{t('marketplace.trends.oilseeds') || "Oilseeds"}</SelectItem>
-                        <SelectItem value="Spices">{t('marketplace.trends.spices') || "Spices"}</SelectItem>
-                        <SelectItem value="Fibres">{t('marketplace.trends.fibres') || "Fibres"}</SelectItem>
-                        <SelectItem value="Flowers">{t('marketplace.trends.flowers') || "Flowers"}</SelectItem>
-                        <SelectItem value="Dry Fruits">{t('marketplace.trends.dryFruits') || "Dry Fruits"}</SelectItem>
-                        <SelectItem value="Beverages">{t('marketplace.trends.beverages') || "Beverages"}</SelectItem>
+                        <SelectItem value="All">{t('marketplace.trends.allCommodities')}</SelectItem>
+                        <SelectItem value="Vegetables">{t('marketplace.trends.vegetables')}</SelectItem>
+                        <SelectItem value="Fruits">{t('marketplace.trends.fruits')}</SelectItem>
+                        <SelectItem value="Cereals">{t('marketplace.trends.cereals')}</SelectItem>
+                        <SelectItem value="Pulses">{t('marketplace.trends.pulses')}</SelectItem>
+                        <SelectItem value="Oilseeds">{t('marketplace.trends.oilseeds')}</SelectItem>
+                        <SelectItem value="Spices">{t('marketplace.trends.spices')}</SelectItem>
+                        <SelectItem value="Fibres">{t('marketplace.trends.fibres')}</SelectItem>
+                        <SelectItem value="Flowers">{t('marketplace.trends.flowers')}</SelectItem>
+                        <SelectItem value="Dry Fruits">{t('marketplace.trends.dryFruits')}</SelectItem>
+                        <SelectItem value="Beverages">{t('marketplace.trends.beverages')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1053,7 +1474,7 @@ const Marketplace = () => {
                         <Lightbulb className="w-3 h-3 mr-2 text-yellow-400" /> {t('marketplace.trends.title')}
                       </Badge>
                     </div>
-                    <CardTitle className="text-2xl text-white font-bold tracking-tight">{t('marketplace.trends.strategicAdvisory') || "Strategic Advisory"}</CardTitle>
+                    <CardTitle className="text-2xl text-white font-bold tracking-tight">{t('marketplace.trends.strategicAdvisory')}</CardTitle>
                     <div className="flex flex-col gap-2 mt-1">
                       <CardDescription className="text-slate-400 text-base">{marketInsights.market_summary}</CardDescription>
                       <div className="flex gap-2">
@@ -1064,7 +1485,7 @@ const Marketplace = () => {
                           onClick={() => handleAudioControl('market-en', marketInsights.voice_script_en || marketInsights.market_summary || "Summary unavailable", 'en-US')}
                         >
                           {playingId === 'market-en' && !isPaused ? <Pause className="w-3 h-3 mr-2" /> : <Volume2 className="w-3 h-3 mr-2" />}
-                          Play English (Full)
+                          {t('common.playEnglish')}
                         </Button>
                         <Button
                           variant="secondary"
@@ -1073,7 +1494,7 @@ const Marketplace = () => {
                           onClick={() => handleAudioControl('market-hi', marketInsights.voice_script_hi || "Hindi translation unavailable in AI response. Please try again.", 'hi-IN')}
                         >
                           {playingId === 'market-hi' && !isPaused ? <Pause className="w-3 h-3 mr-2" /> : <Volume2 className="w-3 h-3 mr-2" />}
-                          Play Hindi (हिंदी)
+                          {t('common.playHindi')}
                         </Button>
                       </div>
                     </div>
@@ -1083,7 +1504,7 @@ const Marketplace = () => {
                       {/* Left: Strategic Advice */}
                       <div className="space-y-4">
                         <h4 className="font-semibold text-indigo-300 flex items-center gap-2 uppercase tracking-wider text-xs">
-                          <Info className="w-4 h-4" /> {t('marketplace.trends.recommendations') || "Trading Recommendations"}
+                          <Info className="w-4 h-4" /> {t('marketplace.trends.recommendations')}
                         </h4>
                         <ul className="space-y-3">
                           {marketInsights.advice?.map((tip: string, idx: number) => (
@@ -1102,7 +1523,7 @@ const Marketplace = () => {
                       {/* Right: Trend Graph */}
                       <div className="h-[250px] w-full bg-slate-950/30 p-4 rounded-xl border border-slate-800">
                         <h4 className="font-semibold text-indigo-300 mb-6 flex items-center gap-2 uppercase tracking-wider text-xs">
-                          <TrendingUp className="w-4 h-4" /> {t('marketplace.trends.forecastTitle') || "7-Day Price Forecast (AI Projected)"}
+                          <TrendingUp className="w-4 h-4" /> {t('marketplace.trends.forecastTitle')}
                         </h4>
                         <ResponsiveContainer width="100%" height="85%">
                           <LineChart data={
@@ -1151,11 +1572,11 @@ const Marketplace = () => {
                           ? "bg-green-100 text-green-700 border-green-200"
                           : "bg-yellow-100 text-yellow-700 border-yellow-200"
                       )}>
-                        {marketPrices[0]?.source || "Source: Agmarknet"}
+                        {t('marketplace.trends.source')}
                       </Badge>
                     )}
                   </CardTitle>
-                  <CardDescription>Real-time prices for {priceFilters.district || 'Selected District'}, {priceFilters.state || 'India'}</CardDescription>
+                  <CardDescription>{t('marketplace.trends.subtitle', { district: priceFilters.district || 'Selected District', state: priceFilters.state || 'India' })}</CardDescription>
                 </CardHeader>
                 <CardContent className="pl-0">
                   {pricesLoading ? (
@@ -1180,16 +1601,16 @@ const Marketplace = () => {
 
                           <div className="flex gap-6 mt-2 md:mt-0">
                             <div className="text-center">
-                              <div className="text-xs text-slate-400 uppercase">{t('marketplace.trends.minPrice') || "Min Price"}</div>
+                              <div className="text-xs text-slate-400 uppercase">{t('marketplace.trends.minPrice')}</div>
                               <div className="font-semibold text-slate-200">₹{price.min_price}</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-xs text-slate-400 uppercase">{t('marketplace.trends.maxPrice') || "Max Price"}</div>
+                              <div className="text-xs text-slate-400 uppercase">{t('marketplace.trends.maxPrice')}</div>
                               <div className="font-semibold text-slate-200">₹{price.max_price}</div>
                             </div>
                             <div className="text-center bg-green-950/30 px-5 py-2 rounded border border-green-900">
-                              <div className="text-[10px] text-green-500 uppercase font-bold tracking-wider">{t('marketplace.trends.modalPrice') || "Modal Price"}</div>
-                              <div className="font-bold text-green-400 text-xl">₹{price.modal_price}/kg</div>
+                              <div className="text-[10px] text-green-500 uppercase font-bold tracking-wider">{t('marketplace.trends.modalPrice')}</div>
+                              <div className="font-bold text-green-400 text-xl">₹{price.modal_price}/{t('seeds.qtyUnit', { defaultValue: 'kg' })}</div>
                             </div>
                           </div>
                         </div>
@@ -1198,7 +1619,7 @@ const Marketplace = () => {
                   ) : (
                     <div className="h-64 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl bg-slate-50/50">
                       <Search className="w-12 h-12 mb-2 text-slate-300" />
-                      <p>{t('marketplace.trends.noRates') || "Enter location specifics to see live market rates."}</p>
+                      <p>{t('marketplace.trends.noRates')}</p>
                     </div>
                   )}
                 </CardContent>

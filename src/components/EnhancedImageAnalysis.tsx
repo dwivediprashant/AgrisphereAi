@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import { EnhancedDiseaseDetector, MultiClassResult } from '@/lib/enhanced-disease-detection';
 import { weatherIntegration } from '@/lib/advanced-weather-integration';
 import { translateToHindi } from '@/lib/voice-translation';
+import { useDialect } from '@/lib/use-dialect';
 
 interface EnhancedImageAnalysisProps {
   analysisType?: 'disease' | 'pest' | 'nutrient' | 'soil' | 'comprehensive';
@@ -20,9 +22,11 @@ interface EnhancedImageAnalysisProps {
 }
 
 const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
-  analysisType = 'comprehensive',
-  onResultsChange
+  onResultsChange,
+  analysisType = 'disease'
 }) => {
+  const { t, i18n } = useTranslation();
+  const { dialect, localize } = useDialect();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<MultiClassResult | null>(null);
@@ -57,6 +61,72 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
       window.speechSynthesis.cancel();
     };
   }, []);
+
+  // Listen for global language changes
+  useEffect(() => {
+    const handleLangChange = (e: any) => {
+      const newLang = e.detail;
+      if (results && newLang !== 'en') {
+        translateResults(newLang);
+      }
+    };
+    window.addEventListener('languageChanged', handleLangChange);
+    return () => window.removeEventListener('languageChanged', handleLangChange);
+  }, [results]);
+
+  const translateResults = async (lang: string) => {
+    if (!results) return;
+    
+    // If standard and english, no need for AI translation usually (unless specifically requested)
+    if (lang === 'en' && dialect === 'Standard') return;
+    
+    setIsAnalyzing(true);
+    setProgress(50);
+    try {
+      // 1. Static Language Translation (Standard)
+      let translated = { ...results };
+      if (lang !== 'en') {
+        const { translateAnalysisResults } = await import('@/lib/ai-translation');
+        translated = await translateAnalysisResults(results, lang);
+      }
+
+      // 2. Dialect Localization Mapping
+      if (dialect !== 'Standard') {
+        toast.info(t('common.dialectTransform', { dialect }));
+        
+        // Localize priority recommendations
+        if (translated.overallHealth.recommendations) {
+           translated.overallHealth.recommendations = await Promise.all(
+              translated.overallHealth.recommendations.map(rec => localize(rec))
+           );
+        }
+
+        // Localize disease treatments
+        if (translated.diseases) {
+           for (let d of translated.diseases) {
+              if (d.treatment) d.treatment = await localize(d.treatment);
+           }
+        }
+
+        // Localize pest controls
+        if (translated.pests) {
+           for (let p of translated.pests) {
+              if (p.damage) p.damage = await localize(p.damage);
+              if (p.chemicalControl) p.chemicalControl = await Promise.all(p.chemicalControl.map(c => localize(c)));
+              if (p.biologicalControl) p.biologicalControl = await Promise.all(p.biologicalControl.map(c => localize(c)));
+           }
+        }
+      }
+
+      setResults(translated);
+      toast.success(t('common.localized', { lang: lang.toUpperCase(), dialect }));
+    } catch (err) {
+      console.error("Translation failed", err);
+    } finally {
+      setIsAnalyzing(false);
+      setProgress(0);
+    }
+  };
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -94,7 +164,16 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
       if (progressInterval.current) clearInterval(progressInterval.current);
       setProgress(100);
 
-      setResults(analysisResults);
+      // Apply initial translation if needed
+      const currentLang = i18n.language;
+      if (currentLang !== 'en') {
+        const { translateAnalysisResults } = await import('@/lib/ai-translation');
+        const translated = await translateAnalysisResults(analysisResults, currentLang);
+        setResults(translated);
+      } else {
+        setResults(analysisResults);
+      }
+      
       onResultsChange?.(analysisResults);
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -107,10 +186,10 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
       setIsAnalyzing(false);
       setTimeout(() => setProgress(0), 1000);
     }
-  }, [selectedFile, detector, onResultsChange]);
+  }, [selectedFile, detector, onResultsChange, i18n.language]);
 
   const getSeverityColor = (severity: string) => {
-    switch (severity) {
+    switch (severity.toLowerCase()) {
       case 'high': return 'bg-red-500 text-white';
       case 'medium': return 'bg-yellow-500 text-white';
       case 'low': return 'bg-green-500 text-white';
@@ -119,7 +198,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
   };
 
   const getHealthStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'excellent': return 'text-green-600';
       case 'good': return 'text-blue-600';
       case 'fair': return 'text-yellow-600';
@@ -185,7 +264,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                 className="flex items-center gap-2 bg-gradient-primary"
               >
                 <Brain className="w-4 h-4" />
-                {isAnalyzing ? 'Analyzing...' : 'Analyze with AI'}
+                {isAnalyzing ? (results ? 'Translating...' : 'Analyzing...') : 'Analyze with AI'}
               </Button>
             </div>
 
@@ -202,12 +281,12 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
         {isAnalyzing && (
           <div className="mt-6 space-y-2">
             <div className="flex justify-between text-sm">
-              <span>AI Analysis Progress</span>
+              <span>{results ? 'AI Translation Progress' : 'AI Analysis Progress'}</span>
               <span>{progress}%</span>
             </div>
             <Progress value={progress} className="w-full" />
             <p className="text-xs text-muted-foreground text-center">
-              Processing with multiple AI models...
+              {results ? 'Localizing results for your region...' : 'Processing with multiple AI models...'}
             </p>
           </div>
         )}
@@ -222,14 +301,6 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold">Overall Plant Health</h3>
                 <div className="flex gap-2 items-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => setVoiceLanguage(prev => prev === 'en' ? 'hi' : 'en')}
-                  >
-                    {voiceLanguage === 'en' ? 'EN' : 'HI'}
-                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -257,7 +328,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                     size="sm"
                     variant="outline"
                     className="gap-2 text-primary border-primary/20 hover:bg-primary/5"
-                    onClick={() => {
+                    onClick={async () => {
                       if (speechState === 'speaking') {
                         pauseSpeech();
                         return;
@@ -277,7 +348,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                       // Diseases
                       if (diseases.length > 0) {
                         text += `I have detected ${diseases.length} disease issues. `;
-                        diseases.forEach(d => {
+                        diseases.forEach((d: any) => {
                           text += `Found ${d.disease.replace('_', ' ')} with ${(d.confidence * 100).toFixed(0)}% confidence. Treatment: ${d.treatment}. `;
                         });
                       } else {
@@ -287,7 +358,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                       // Pests
                       if (pests.length > 0) {
                         text += `I also found ${pests.length} pest issues. `;
-                        pests.forEach(p => {
+                        pests.forEach((p: any) => {
                           text += `Identified ${p.pest.replace('_', ' ')}. Control it using: ${p.chemicalControl[0] || 'recommended pesticides'}. `;
                         });
                       }
@@ -295,7 +366,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                       // Nutrients
                       if (nutrientDeficiency.length > 0) {
                         text += `There are ${nutrientDeficiency.length} nutrient deficiencies. `;
-                        nutrientDeficiency.forEach(n => {
+                        nutrientDeficiency.forEach((n: any) => {
                           text += `It seems to lack ${n.nutrient.replace('_', ' ')}. Recommended fertilizer is ${n.fertilizer}. `;
                         });
                       }
@@ -304,10 +375,20 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                       text += `Soil texture is ${soilAnalysis.texture}, and fertility is ${soilAnalysis.fertility}. `;
                       text += `Please check the detailed priority recommendations below.`;
 
-                      // Translate if Hindi is selected
-                      if (voiceLanguage === 'hi') {
-                        text = translateToHindi(text);
-                        speech.lang = 'hi-IN';
+                      // AI-powered translation for speech if not in English
+                      const currentLang = i18n.language;
+                      if (currentLang !== 'en') {
+                        const { translateText } = await import('@/lib/ai-translation');
+                        text = await translateText(text, currentLang);
+                        
+                        // Map language codes to regional voices if available
+                        const voiceMap: Record<string, string> = {
+                          'hi': 'hi-IN',
+                          'bn': 'bn-IN',
+                          'as': 'as-IN', // Assamese might fall back to hi-IN or en-IN depending on OS
+                          'kn': 'kn-IN'
+                        };
+                        speech.lang = voiceMap[currentLang] || 'en-IN';
                       }
 
                       speech.text = text;
@@ -319,7 +400,7 @@ const EnhancedImageAnalysis: React.FC<EnhancedImageAnalysisProps> = ({
                       window.speechSynthesis.cancel();
                       window.speechSynthesis.speak(speech);
                       setSpeechState('speaking');
-                      toast.info(voiceLanguage === 'hi' ? "Parinam samjhaye ja rahe hain..." : "Explaining full analysis...");
+                      toast.info("Explaining analysis in your language...");
                     }}
                   >
                     {speechState === 'idle' ? (

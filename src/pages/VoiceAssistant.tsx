@@ -1,70 +1,83 @@
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mic, Volume2, MessageCircle, Languages, Play, Pause, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import VoiceRecognition from "@/components/VoiceRecognition";
+import { useTranslation } from "react-i18next";
 
 const VoiceAssistant = () => {
+  const { t } = useTranslation();
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const voiceFeatures = [
     {
-      title: "Hindi Voice Recognition",
-      description: "Speak naturally in Hindi and get instant responses",
+      title: t('voiceAssistant.features.f1.title'),
+      description: t('voiceAssistant.features.f1.desc'),
       icon: "🎤",
-      example: "\"Gehun mein rog a gaya hai, kya karein?\"",
-      response: "Wheat disease detected. Apply fungicide spray."
+      example: t('voiceAssistant.features.f1.example'),
+      response: t('voiceAssistant.features.f1.response')
     },
     {
-      title: "Local Language Support",
-      description: "Support for regional languages across India",
+      title: t('voiceAssistant.features.f2.title'),
+      description: t('voiceAssistant.features.f2.desc'),
       icon: "🗣️",
-      languages: ["Hindi", "English (India)"],
+      languages: [t('voiceAssistant.langs.hindi'), t('voiceAssistant.langs.english')],
       coverage: "2 languages"
     },
     {
-      title: "Audio Responses",
-      description: "Get detailed audio responses in your preferred language",
+      title: t('voiceAssistant.features.f3.title'),
+      description: t('voiceAssistant.features.f3.desc'),
       icon: "🔊",
-      features: ["Clear pronunciation", "Slow/Fast speed", "Repeat option", "Save audio"]
+      features: [
+        t('voiceAssistant.features.f3.item1'),
+        t('voiceAssistant.features.f3.item2'),
+        t('voiceAssistant.features.f3.item3'),
+        t('voiceAssistant.features.f3.item4')
+      ]
     },
     {
-      title: "Offline Voice Commands",
-      description: "Basic voice commands work even without internet",
+      title: t('voiceAssistant.features.f4.title'),
+      description: t('voiceAssistant.features.f4.desc'),
       icon: "📱",
-      commands: ["Weather check", "Crop calendar", "Basic diagnosis", "Emergency help"]
+      commands: [
+        t('voiceAssistant.features.f4.item1'),
+        t('voiceAssistant.features.f4.item2'),
+        t('voiceAssistant.features.f4.item3'),
+        t('voiceAssistant.features.f4.item4')
+      ]
     }
   ];
 
   const conversationExamples = [
     {
-      farmer: "Tomato mein patte peelay ho rahe hain",
-      translation: "Tomato leaves are turning yellow",
-      ai: "यह नाइट्रोजन की कमी हो सकती है। यूरिया का छिड़काव करें।",
-      aiTranslation: "This could be nitrogen deficiency. Apply urea spray.",
-      solution: "Apply 2kg urea per acre with water spray"
+      farmer: t('voiceAssistant.examples.e1.farmer'),
+      translation: t('voiceAssistant.examples.e1.farmerTrans'),
+      ai: t('voiceAssistant.examples.e1.ai'),
+      aiTranslation: t('voiceAssistant.examples.e1.aiTrans'),
+      solution: t('voiceAssistant.examples.e1.solution')
     },
     {
-      farmer: "Kya aaj pani dena chahiye?",
-      translation: "Should I water today?",
-      ai: "मिट्टी में नमी 40% है। 2 दिन बाद पानी दें।",
-      aiTranslation: "Soil moisture is 40%. Water after 2 days.",
-      solution: "Wait 2 days, then apply 25mm irrigation"
+      farmer: t('voiceAssistant.examples.e2.farmer'),
+      translation: t('voiceAssistant.examples.e2.farmerTrans'),
+      ai: t('voiceAssistant.examples.e2.ai'),
+      aiTranslation: t('voiceAssistant.examples.e2.aiTrans'),
+      solution: t('voiceAssistant.examples.e2.solution')
     },
     {
-      farmer: "Fasal kab kaatni chahiye?",
-      translation: "When should I harvest the crop?",
-      ai: "आपकी गेहूं 15 दिन में तैयार होगी। दाने सुनहरे होने का इंतज़ार करें।",
-      aiTranslation: "Your wheat will be ready in 15 days. Wait for golden grains.",
-      solution: "Harvest when moisture content is 12-14%"
+      farmer: t('voiceAssistant.examples.e3.farmer'),
+      translation: t('voiceAssistant.examples.e3.farmerTrans'),
+      ai: t('voiceAssistant.examples.e3.ai'),
+      aiTranslation: t('voiceAssistant.examples.e3.aiTrans'),
+      solution: t('voiceAssistant.examples.e3.solution')
     }
   ];
 
-  const supportedLanguages = [
-    { name: "Hindi", speakers: "600M+", status: "Full Support", flag: "🇮🇳" },
-    { name: "English (India)", speakers: "125M+", status: "Full Support", flag: "🇮🇳" }
+  const supportedLanguagesList = [
+    { name: t('voiceAssistant.langs.hindi'), speakers: "600M+", status: t('voiceAssistant.langs.fullSupport'), flag: "🇮🇳" },
+    { name: t('voiceAssistant.langs.english'), speakers: "125M+", status: t('voiceAssistant.langs.fullSupport'), flag: "🇮🇳" }
   ];
 
   return (
@@ -73,10 +86,10 @@ const VoiceAssistant = () => {
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </a>
+              {t('disease.backHome')}
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌱</span>
@@ -94,11 +107,10 @@ const VoiceAssistant = () => {
           >
             <div className="text-6xl mb-6">🎙️</div>
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              Voice Assistant for Farmers
+              {t('voiceAssistant.hero.title')}
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Speak naturally in Hindi or your local language. Get instant AI-powered
-              agricultural advice with voice responses designed for rural farmers.
+              {t('voiceAssistant.hero.desc')}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button
@@ -106,11 +118,10 @@ const VoiceAssistant = () => {
                 className={`bg-gradient-primary transition-all duration-300 ${isListening ? 'animate-pulse' : ''}`}
                 onClick={() => {
                   document.getElementById('voice-demo')?.scrollIntoView({ behavior: 'smooth' });
-                  // Optional: Trigger a focus or highlight
                 }}
               >
                 <Mic className="mr-2 w-5 h-5" />
-                Start Speaking
+                {t('voiceAssistant.hero.startBtn')}
               </Button>
               <Button
                 size="lg"
@@ -118,7 +129,7 @@ const VoiceAssistant = () => {
                 onClick={() => document.getElementById('voice-demo')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 <Languages className="mr-2 w-5 h-5" />
-                Choose Language
+                {t('voiceAssistant.hero.chooseLangBtn')}
               </Button>
             </div>
           </motion.div>
@@ -128,7 +139,7 @@ const VoiceAssistant = () => {
       {/* Voice Features */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">Voice Assistant Features</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('voiceAssistant.features.sectionTitle')}</h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
             {voiceFeatures.map((feature, i) => (
               <Card key={i} className="p-8 hover:shadow-lg transition-all duration-300 group">
@@ -183,7 +194,7 @@ const VoiceAssistant = () => {
       {/* Conversation Examples */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">Real Conversation Examples</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('voiceAssistant.examples.sectionTitle')}</h2>
           <div className="space-y-8 max-w-4xl mx-auto">
             {conversationExamples.map((conv, i) => (
               <Card key={i} className="p-6 hover:shadow-lg transition-all duration-300">
@@ -214,7 +225,7 @@ const VoiceAssistant = () => {
                         <p className="font-medium text-accent">{conv.ai}</p>
                         <p className="text-xs text-muted-foreground mt-1">{conv.aiTranslation}</p>
                         <div className="mt-2 text-xs bg-secondary/20 px-2 py-1 rounded text-secondary">
-                          Solution: {conv.solution}
+                          {t('voiceAssistant.examples.solutionPrefix')}: {conv.solution}
                         </div>
                       </div>
                     </div>
@@ -232,7 +243,7 @@ const VoiceAssistant = () => {
       {/* Live Voice Demo */}
       <section id="voice-demo" className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">Try Voice Assistant Live</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('voiceAssistant.demo.sectionTitle')}</h2>
           <div className="max-w-4xl mx-auto">
             <VoiceRecognition />
           </div>
@@ -242,17 +253,14 @@ const VoiceAssistant = () => {
       {/* Supported Languages */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">Supported Languages</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('voiceAssistant.langs.sectionTitle')}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {supportedLanguages.map((lang, i) => (
+            {supportedLanguagesList.map((lang, i) => (
               <Card key={i} className="p-6 text-center hover:shadow-lg transition-all duration-300">
                 <div className="text-3xl mb-3">{lang.flag}</div>
                 <h3 className="font-bold mb-2">{lang.name}</h3>
                 <p className="text-sm text-muted-foreground mb-2">{lang.speakers}</p>
-                <div className={`text-xs px-2 py-1 rounded-full font-medium ${lang.status === 'Full Support' ? 'bg-primary/20 text-primary' :
-                  lang.status === 'Beta' ? 'bg-accent/20 text-accent' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
+                <div className={`text-xs px-2 py-1 rounded-full font-medium ${lang.status === t('voiceAssistant.langs.fullSupport') ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   {lang.status}
                 </div>
               </Card>
@@ -264,13 +272,13 @@ const VoiceAssistant = () => {
       {/* How It Works */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">How Voice Assistant Works</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('voiceAssistant.howItWorks.sectionTitle')}</h2>
           <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {[
-              { step: "1", title: "Speak Question", desc: "Ask in Hindi or local language", icon: Mic },
-              { step: "2", title: "AI Processing", desc: "Voice recognition & understanding", icon: MessageCircle },
-              { step: "3", title: "Generate Response", desc: "AI creates personalized answer", icon: Languages },
-              { step: "4", title: "Audio Reply", desc: "Hear response in your language", icon: Volume2 }
+              { step: "1", title: t('voiceAssistant.howItWorks.s1.title'), desc: t('voiceAssistant.howItWorks.s1.desc'), icon: Mic },
+              { step: "2", title: t('voiceAssistant.howItWorks.s2.title'), desc: t('voiceAssistant.howItWorks.s2.desc'), icon: MessageCircle },
+              { step: "3", title: t('voiceAssistant.howItWorks.s3.title'), desc: t('voiceAssistant.howItWorks.s3.desc'), icon: Languages },
+              { step: "4", title: t('voiceAssistant.howItWorks.s4.title'), desc: t('voiceAssistant.howItWorks.s4.desc'), icon: Volume2 }
             ].map((item, i) => (
               <div key={i} className="text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xl">
@@ -288,13 +296,13 @@ const VoiceAssistant = () => {
       {/* Benefits */}
       <section className="py-20 px-4">
         <div className="container mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-16">Voice Assistant Benefits</h2>
+          <h2 className="text-4xl font-bold mb-16">{t('voiceAssistant.benefits.sectionTitle')}</h2>
           <div className="grid md:grid-cols-4 gap-8 max-w-4xl mx-auto">
             {[
-              { title: "Easy to Use", desc: "No typing required, just speak", icon: "👄" },
-              { title: "Rural Friendly", desc: "Works for illiterate farmers", icon: "🏘️" },
-              { title: "Instant Help", desc: "Get answers in seconds", icon: "⚡" },
-              { title: "Local Language", desc: "Understand & respond in Hindi", icon: "🇮🇳" }
+              { title: t('voiceAssistant.benefits.b1.title'), desc: t('voiceAssistant.benefits.b1.desc'), icon: "👄" },
+              { title: t('voiceAssistant.benefits.b2.title'), desc: t('voiceAssistant.benefits.b2.desc'), icon: "🏘️" },
+              { title: t('voiceAssistant.benefits.b3.title'), desc: t('voiceAssistant.benefits.b3.desc'), icon: "⚡" },
+              { title: t('voiceAssistant.benefits.b4.title'), desc: t('voiceAssistant.benefits.b4.desc'), icon: "🇮🇳" }
             ].map((benefit, i) => (
               <Card key={i} className="p-6 hover:shadow-lg transition-all duration-300">
                 <div className="text-4xl mb-3">{benefit.icon}</div>

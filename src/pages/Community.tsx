@@ -19,6 +19,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { Mic, MicOff, Volume2, StopCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { translateText } from "@/lib/ai-translation";
 
 interface Post {
     id: string;
@@ -67,7 +68,7 @@ const formatDateLabel = (isoDate: string, t: any) => {
 };
 
 const Community = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("forum");
     const [posts, setPosts] = useState<Post[]>([]);
@@ -297,7 +298,7 @@ const Community = () => {
             toast({ title: "Success", description: "Question posted to the forum!" });
             fetchPosts();
         } catch (error) {
-            toast({ title: "Error", description: "Failed to post question", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('community.errorPost'), variant: "destructive" });
         } finally {
             setIsPosting(false);
         }
@@ -360,21 +361,50 @@ const Community = () => {
             fetchChat();
         } catch (error) {
             console.error("Failed to send message", error);
-            toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('community.errorSend'), variant: "destructive" });
         }
     };
 
     const handleTranslate = async (msgId: string, text: string) => {
-        // Simple mock translation for demo purposes since we don't have a live translation API key configured for the frontend
-        // In production, this would call Google Translate API or the backend
-        const hindiMock = "यह एक अनुवादित संदेश है (This is a translated message)";
+        const langMap: Record<string, string> = {
+            'en': 'English', 'hi': 'Hindi', 'bn': 'Bengali', 'as': 'Assamese', 'kn': 'Kannada'
+        };
+        const targetLang = langMap[i18n.language] || 'Hindi'; // fallback to Hindi if they are in English and click translate
 
-        setChatMessages(prev => prev.map(msg =>
-            msg.id === msgId
-                ? { ...msg, text: msg.text.includes(" (HI)") ? msg.text.split(" (HI)")[0] : `${msg.text} (HI): ${hindiMock}` }
-                : msg
-        ));
-        toast({ title: "Translation", description: "Message translated to Hindi" });
+        try {
+            const translatedText = await translateText(text, targetLang);
+            
+            setChatMessages(prev => prev.map(msg =>
+                msg.id === msgId
+                    ? { ...msg, text: msg.text.includes(" (TR)") ? msg.text.split(" (TR)")[0] : `${msg.text} (TR): ${translatedText}` }
+                    : msg
+            ));
+            toast({ title: t('common.success'), description: t('community.translatedLocally') });
+        } catch(e) {
+            toast({ title: t('common.error'), description: "Translation failed" });
+        }
+    };
+
+    const handleTranslatePost = async (postId: string, title: string, content: string) => {
+        const langMap: Record<string, string> = {
+            'en': 'English', 'hi': 'Hindi', 'bn': 'Bengali', 'as': 'Assamese', 'kn': 'Kannada'
+        };
+        const targetLang = langMap[i18n.language] || 'Hindi'; 
+
+        try {
+            toast({ title: t('community.translatingToast'), description: t('community.aiTranslating') });
+            const translatedTitle = await translateText(title, targetLang);
+            const translatedContent = await translateText(content, targetLang);
+            
+            setPosts(prev => prev.map(post =>
+                post.id === postId
+                    ? { ...post, title: translatedTitle, content: translatedContent }
+                    : post
+            ));
+            toast({ title: t('common.success'), description: "Post translated successfully" });
+        } catch(e) {
+            toast({ title: t('common.error'), description: "Failed to translate post" });
+        }
     };
 
     useEffect(() => {
@@ -449,15 +479,15 @@ const Community = () => {
                                 </div>
 
                                 {loading ? (
-                                    <div className="text-center py-12 text-slate-500">Loading community discussions...</div>
+                                    <div className="text-center py-12 text-slate-500">{t('community.loadingDiscussions')}</div>
                                 ) : error ? (
                                     <div className="text-center py-12 text-red-400 border border-red-900/50 rounded-lg bg-red-900/20">
                                         {error}
-                                        <Button variant="link" className="text-red-300 block mx-auto mt-2" onClick={fetchPosts}>Try Again</Button>
+                                        <Button variant="link" className="text-red-300 block mx-auto mt-2" onClick={fetchPosts}>{t('common.tryAgain')}</Button>
                                     </div>
                                 ) : posts.length === 0 ? (
                                     <div className="text-center py-12 border border-dashed border-slate-800 rounded-lg">
-                                        <p className="text-slate-500">No discussions yet. Be the first to ask!</p>
+                                        <p className="text-slate-500">{t('community.noDiscussions')}</p>
                                     </div>
                                 ) : (
                                     posts.map((post) => (
@@ -496,6 +526,18 @@ const Community = () => {
                                                                 className="h-6 w-6 p-0 hover:bg-slate-800 rounded-full text-slate-400 hover:text-green-400"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
+                                                                    handleTranslatePost(post.id, post.title, post.content);
+                                                                }}
+                                                                title={t('community.translatePost')}
+                                                            >
+                                                                <div className="w-4 h-4 flex items-center justify-center text-[10px] font-bold">অ</div>
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-6 w-6 p-0 hover:bg-slate-800 rounded-full text-slate-400 hover:text-green-400"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
                                                                     tts.speak(`${post.title}. ${post.content}`);
                                                                 }}
                                                             >
@@ -506,7 +548,7 @@ const Community = () => {
                                                         {/* Expanded Comments Section */}
                                                         {expandedPostId === post.id && (
                                                             <div className="mt-6 pt-4 border-t border-slate-800 animate-in fade-in zoom-in-95 duration-200">
-                                                                <h4 className="text-sm font-semibold text-slate-300 mb-4">Replies</h4>
+                                                                <h4 className="text-sm font-semibold text-slate-300 mb-4">{t('community.replies')}</h4>
                                                                 <div className="space-y-4 mb-4">
                                                                     {post.comments && post.comments.length > 0 ? (
                                                                         post.comments.map((comment, idx) => (
@@ -519,12 +561,12 @@ const Community = () => {
                                                                             </div>
                                                                         ))
                                                                     ) : (
-                                                                        <p className="text-sm text-slate-500 italic">No replies yet. Be the first!</p>
+                                                                        <p className="text-sm text-slate-500 italic">{t('community.noReplies')}</p>
                                                                     )}
                                                                 </div>
                                                                 <div className="flex gap-2">
                                                                     <Input
-                                                                        placeholder="Write a reply..."
+                                                                        placeholder={t('community.replyTitle')}
                                                                         className="bg-slate-800 border-slate-700 h-9 text-sm"
                                                                         value={replyText}
                                                                         onChange={(e) => setReplyText(e.target.value)}
@@ -544,7 +586,7 @@ const Community = () => {
                                                                             handlePostReply(post.id);
                                                                         }}
                                                                     >
-                                                                        Reply
+                                                                        {t('community.replyBtn')}
                                                                     </Button>
                                                                 </div>
                                                             </div>
@@ -624,7 +666,7 @@ const Community = () => {
                                 <div className="flex justify-between items-center">
                                     <CardTitle className="flex items-center gap-2 text-white">
                                         <div className={`w-2 h-2 rounded-full ${activePrivateChat ? 'bg-blue-500' : 'bg-green-500'} animate-pulse`}></div>
-                                        {activePrivateChat ? `Chat with ${activePrivateChat}` : 'Live Farmers Chat (Global)'}
+                                        {activePrivateChat ? `${t('community.chatWith')} ${activePrivateChat}` : t('community.globalChat')}
                                     </CardTitle>
                                     {activePrivateChat && (
                                         <Button
@@ -668,9 +710,9 @@ const Community = () => {
                                                             : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'
                                                             }`}>
                                                             <div className="text-xs opacity-70 mb-1 flex justify-between gap-4">
-                                                                <span>{msg.sender === username ? 'You' : msg.sender}</span>
+                                                                <span>{msg.sender === username ? t('community.you') : msg.sender}</span>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                    <span>{new Date(msg.timestamp).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
@@ -711,10 +753,10 @@ const Community = () => {
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            if (confirm("Delete this message?")) handleDeleteMessage(msg.id);
+                                                                            if (confirm(t('community.deleteMessageConfirm'))) handleDeleteMessage(msg.id);
                                                                         }}
                                                                         className="p-1.5 bg-slate-800 border border-red-500/30 rounded-full text-red-400 hover:bg-red-500 hover:text-white shadow-lg transition-colors"
-                                                                        title="Delete Message"
+                                                                        title={t('community.deleteMessage')}
                                                                     >
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </button>
@@ -792,7 +834,7 @@ const Community = () => {
                         <Card className="w-64 bg-slate-900 border-slate-800 hidden md:flex flex-col">
                             <CardHeader className="border-b border-slate-800/50 pb-3">
                                 <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    <Users className="w-3 h-3" /> Online Farmers ({onlineUsers.length})
+                                    <Users className="w-3 h-3" /> {t('community.onlineFarmers')} ({onlineUsers.length})
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 p-2">
@@ -823,7 +865,7 @@ const Community = () => {
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className={`text-sm font-medium ${activePrivateChat === user.username ? 'text-blue-400' : 'text-slate-300'}`}>
-                                                        {user.username} {user.username === username && '(You)'}
+                                                        {user.username} {user.username === username && `(${t('community.you')})`}
                                                     </span>
                                                     {user.username !== username && (
                                                         <span className="text-[10px] text-slate-500">

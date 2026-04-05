@@ -23,12 +23,14 @@ import { useState, lazy, Suspense } from "react";
 import { FarmDrawer } from "@/components/FarmDrawer";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useTranslation } from "react-i18next";
+import { useDialect } from "@/lib/use-dialect";
 
 // Lazy load the GIS Map component for better performance
-const GISMap = lazy(() => import("@/components/GISMap").then(module => ({ default: module.GISMap })));
+const GISMap = lazy(() => import("@/components/GISMap").then(module => ({ default: module.GISMap as any })));
 
 const DigitalTwin = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { dialect, localize } = useDialect();
   const [twinEngine] = useState(() => new DigitalTwinEngine());
   const [gisEngine] = useState(() => new GISDigitalTwin());
   const [farmData, setFarmData] = useState(null);
@@ -248,51 +250,51 @@ const DigitalTwin = () => {
       description: t('digitalTwin.subtitle'),
       icon: "🗺️",
       accuracy: "99.5%",
-      features: [t('digitalTwin.coordinates'), t('digitalTwin.area'), "Boundary Alerts", "Shape Analysis"]
+      features: [t('digitalTwin.coordinates'), t('digitalTwin.area'), t('digitalTwin.layers.pests'), t('digitalTwin.shapeAnalysis', 'Shape Analysis')]
     },
     {
-      title: "Soil Zone Classification",
-      description: "Multi-layer soil analysis with texture, pH, and nutrient mapping",
+      title: t('digitalTwin.features.soil.title'),
+      description: t('digitalTwin.features.soil.desc'),
       icon: "🌍",
       accuracy: "94%",
-      features: ["Soil Texture", "pH Zones", "Nutrient Maps", "Fertility Index"]
+      features: [t('digitalTwin.features.soil.f1'), t('digitalTwin.features.soil.f2'), t('digitalTwin.features.soil.f3'), t('digitalTwin.features.soil.f4')]
     },
     {
-      title: "Irrigation Zone Planning",
-      description: "Smart irrigation zone design based on crop needs and soil conditions",
+      title: t('digitalTwin.features.irrigation.title'),
+      description: t('digitalTwin.features.irrigation.desc'),
       icon: "💧",
       accuracy: "96%",
-      features: ["Water Zones", "Drip Planning", "Sprinkler Layout", "Efficiency Maps"]
+      features: [t('digitalTwin.features.irrigation.f1'), t('digitalTwin.features.irrigation.f2'), t('digitalTwin.features.irrigation.f3'), t('digitalTwin.features.irrigation.f4')]
     },
     {
-      title: "Pest-Prone Area Detection",
-      description: "Historical pest data analysis to identify high-risk zones",
+      title: t('digitalTwin.features.pest.title'),
+      description: t('digitalTwin.features.pest.desc'),
       icon: "🐛",
       accuracy: "91%",
-      features: ["Risk Zones", "Pest History", "Prevention Areas", "Treatment Maps"]
+      features: [t('digitalTwin.features.pest.f1'), t('digitalTwin.features.pest.f2'), t('digitalTwin.features.pest.f3'), t('digitalTwin.features.pest.f4')]
     },
     {
-      title: "Crop Growth Staging",
-      description: "Real-time crop growth stage monitoring across different field zones",
+      title: t('digitalTwin.features.growth.title'),
+      description: t('digitalTwin.features.growth.desc'),
       icon: "🌱",
       accuracy: "93%",
-      features: ["Growth Stages", "Maturity Maps", "Harvest Zones", "Yield Prediction"]
+      features: [t('digitalTwin.features.growth.f1'), t('digitalTwin.features.growth.f2'), t('digitalTwin.features.growth.f3'), t('digitalTwin.features.growth.f4')]
     },
     {
-      title: "Weather Microclimate",
-      description: "Field-specific microclimate analysis and weather pattern mapping",
+      title: t('digitalTwin.features.weather.title'),
+      description: t('digitalTwin.features.weather.desc'),
       icon: "🌤️",
       accuracy: "89%",
-      features: ["Temperature Zones", "Humidity Maps", "Wind Patterns", "Frost Risk"]
+      features: [t('digitalTwin.features.weather.f1'), t('digitalTwin.features.weather.f2'), t('digitalTwin.features.weather.f3'), t('digitalTwin.features.weather.f4')]
     }
   ];
 
   const gisLayers = [
-    { name: "Satellite Imagery", type: "Base Layer", update: "Daily" },
-    { name: "Soil Health", type: "Analysis Layer", update: "Weekly" },
-    { name: "Crop Health", type: "Monitoring Layer", update: "Real-time" },
-    { name: "Weather Data", type: "Environmental Layer", update: "Hourly" },
-    { name: "Pest Alerts", type: "Alert Layer", update: "As needed" }
+    { name: t('digitalTwin.layers.satellite'), type: t('digitalTwin.layers.base'), update: t('digitalTwin.layers.daily') },
+    { name: t('digitalTwin.layers.soilHealth'), type: t('digitalTwin.layers.analysis'), update: t('digitalTwin.layers.weekly') },
+    { name: t('digitalTwin.layers.cropHealth'), type: t('digitalTwin.layers.monitoring'), update: t('digitalTwin.layers.realtime') },
+    { name: t('digitalTwin.layers.weather'), type: t('digitalTwin.layers.environmental'), update: t('digitalTwin.layers.hourly') },
+    { name: t('digitalTwin.layers.pests'), type: t('digitalTwin.layers.alert'), update: t('digitalTwin.layers.asneeded') }
   ];
 
   return (
@@ -531,9 +533,9 @@ const DigitalTwin = () => {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[800px] h-[90vh]">
                   <DialogHeader>
-                    <DialogTitle>Draw Farm Boundary</DialogTitle>
+                    <DialogTitle>{t('digitalTwin.drawMap')}</DialogTitle>
                     <DialogDescription>
-                      Pinpoint your location and trace the exact shape of your land.
+                      {t('digitalTwin.drawDesc', 'Pinpoint your location and trace the exact shape of your land.')}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="h-full py-4">
@@ -604,13 +606,13 @@ const DigitalTwin = () => {
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
-                    <span className="text-sm font-medium text-primary">Creating your digital farm twin...</span>
+                    <span className="text-sm font-medium text-primary">{t('digitalTwin.initializing.status')}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    • Mapping field boundaries for <strong>{formData.farmName}</strong><br />
-                    • Analyzing soil zones based on location<br />
-                    • Planning irrigation systems for {formData.size} acres<br />
-                    • Detecting pest-prone areas
+                    • {t('digitalTwin.initializing.mapping')} <strong>{formData.farmName}</strong><br />
+                    • {t('digitalTwin.initializing.soil')}<br />
+                    • {t('digitalTwin.initializing.irrigation')} {formData.size} {t('digitalTwin.sizeUnit', 'acres')}<br />
+                    • {t('digitalTwin.initializing.pests')}
                   </div>
                 </div>
               </motion.div>
@@ -686,7 +688,7 @@ const DigitalTwin = () => {
                 <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> Lng: {formData.longitude}</span>
               </div>
               <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-                Explore {gisData.owner}'s farm with multi-layer GIS visualization. Click on zones for detailed information.
+                {t('digitalTwin.exploreNote', { owner: gisData.owner })}
               </p>
               <Suspense fallback={
                 <div className="flex items-center justify-center py-20">
@@ -727,50 +729,36 @@ const DigitalTwin = () => {
                     size="sm"
                     variant={isSpeaking ? "destructive" : "default"}
                     className={`h-8 px-3 rounded-full transition-all duration-300 ${isSpeaking ? 'animate-pulse' : ''}`}
-                    onClick={() => {
+                    onClick={async () => {
                       if (isSpeaking) {
                         stop();
                       } else {
-                        // Generate Comprehensive Summary
-                        let text = `Farm Status Report for ${farmData.farmBoundary.area.toFixed(2)} hectares. `;
+                        // Generate Comprehensive Summary using i18n
+                        let text = t('digitalTwin.summary.prefix', { area: farmData.farmBoundary.area.toFixed(2) }) + " ";
 
                         // Soil & Irrigation
-                        text += `We have identified ${farmData.soilZones.length} distinct soil zones and ${farmData.irrigationZones.length} irrigation zones. `;
+                        text += t('digitalTwin.summary.zones', {
+                          soil: farmData.soilZones.length,
+                          irrigation: farmData.irrigationZones.length
+                        }) + " ";
 
                         // Crop Health
                         const avgHealth = Math.round(farmData.cropGrowthStages.reduce((sum: number, stage: any) => sum + stage.health, 0) / farmData.cropGrowthStages.length);
-                        text += `Overall crop health is ${avgHealth}%. `;
-
-                        // Crop Specifics
-                        const crops = farmData.cropGrowthStages.map((s: any) => `${s.cropType} (${s.stage})`).join(', ');
-                        text += `Current crops are: ${crops}. `;
+                        text += t('digitalTwin.summary.health', { health: avgHealth }) + " ";
 
                         // Pests
-                        const highRisk = farmData.pestProneAreas.filter((p: any) => p.riskLevel === 'high');
+                        const highRisk = farmData.pestProneAreas.filter((p: any) => (p.riskLevel || p.risk) === 'high');
                         if (highRisk.length > 0) {
-                          text += `Warning: High pest risk detected for ${highRisk.map((p: any) => p.pestType).join(' and ')}. Immediate action recommended. `;
+                          text += t('digitalTwin.summary.pestWarning') + " ";
                         } else {
-                          text += "Pest risk is currently low. ";
+                          text += t('digitalTwin.summary.pestLow') + " ";
                         }
 
-                        // Weather (if available)
-                        if (farmData.weatherData) {
-                          text += `Local weather is ${farmData.weatherData.temperature}°C with ${farmData.weatherData.humidity}% humidity. `;
-                        }
-
-                        console.log("Speaking:", text);
-
-                        if (voiceLanguage === 'hi') {
-                          // Mock Translation or use utility
-                          // For now using english text but with Hindi voice if available or just English
-                          // In real app, call translateToHindi(text)
-                          // text = translateToHindi(text); 
-                          // ensuring simple fallback
-                          const hindiText = `नमस्ते। आपके खेत का स्थिति रिपोर्ट। ${farmData.farmBoundary.area.toFixed(2)} हेक्टेयर क्षेत्र। ${farmData.soilZones.length} मिट्टी क्षेत्र और ${farmData.irrigationZones.length} सिंचाई क्षेत्र हैं। फसल स्वास्थ्य ${avgHealth} प्रतिशत है। कीट जोखिम ${highRisk.length > 0 ? 'उच्च' : 'कम'} है।`;
-                          speak(hindiText, 'hi-IN');
-                        } else {
-                          speak(text, 'en-IN');
-                        }
+                        // Localize for dialect
+                        const regionalSummary = await localize(text);
+                        
+                        // Use regional voice or Hindi if applicable
+                        speak(regionalSummary, i18n.language === 'hi' ? 'hi-IN' : 'en-IN');
                       }
                     }}
                   >
@@ -798,30 +786,30 @@ const DigitalTwin = () => {
                 </Card>
                 <Card className="p-6 text-center">
                   <Layers className="w-8 h-8 mx-auto mb-3 text-blue-500" />
-                  <h3 className="font-bold mb-2">Soil Zones</h3>
+                  <h3 className="font-bold mb-2">{t('digitalTwin.features.soil.title')}</h3>
                   <div className="text-2xl font-bold text-blue-500">{farmData.soilZones.length}</div>
-                  <div className="text-sm text-muted-foreground">Mapped zones</div>
+                  <div className="text-sm text-muted-foreground">{t('digitalTwin.insights.mappedZones')}</div>
                 </Card>
                 <Card className="p-6 text-center">
                   <Droplets className="w-8 h-8 mx-auto mb-3 text-cyan-500" />
-                  <h3 className="font-bold mb-2">Irrigation Zones</h3>
+                  <h3 className="font-bold mb-2">{t('digitalTwin.features.irrigation.title')}</h3>
                   <div className="text-2xl font-bold text-cyan-500">{farmData.irrigationZones.length}</div>
-                  <div className="text-sm text-muted-foreground">Active zones</div>
+                  <div className="text-sm text-muted-foreground">{t('digitalTwin.insights.activeZones')}</div>
                 </Card>
                 <Card className="p-6 text-center">
                   <Activity className="w-8 h-8 mx-auto mb-3 text-orange-500" />
-                  <h3 className="font-bold mb-2">Crop Health</h3>
+                  <h3 className="font-bold mb-2">{t('digitalTwin.insights.growthStages')}</h3>
                   <div className="text-2xl font-bold text-orange-500">
                     {Math.round(farmData.cropGrowthStages.reduce((sum, stage) => sum + stage.health, 0) / farmData.cropGrowthStages.length)}
                   </div>
-                  <div className="text-sm text-muted-foreground">Average %</div>
+                  <div className="text-sm text-muted-foreground">{t('digitalTwin.insights.avgHealth')}</div>
                 </Card>
               </div>
               <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                 <Card className="p-6">
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <Bug className="w-5 h-5 text-red-500" />
-                    Pest Risk Areas
+                    {t('digitalTwin.insights.pestRisk')}
                   </h3>
                   <div className="space-y-3">
                     {farmData.pestProneAreas.map((area, idx) => (
@@ -834,7 +822,7 @@ const DigitalTwin = () => {
                           area.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                             'bg-green-100 text-green-700'
                           }`}>
-                          {area.riskLevel} risk
+                          {t(`common.risk.${area.riskLevel || 'low'}`)} {t('digitalTwin.insights.risk')}
                         </div>
                       </div>
                     ))}
@@ -843,7 +831,7 @@ const DigitalTwin = () => {
                 <Card className="p-6">
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-green-500" />
-                    Crop Growth Stages
+                    {t('digitalTwin.insights.growthStages')}
                   </h3>
                   <div className="space-y-3">
                     {farmData.cropGrowthStages.map((stage, idx) => (
@@ -854,7 +842,7 @@ const DigitalTwin = () => {
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-green-600">{stage.health.toFixed(1)}%</div>
-                          <div className="text-xs text-muted-foreground">Health</div>
+                          <div className="text-xs text-muted-foreground">{t('digitalTwin.insights.health')}</div>
                         </div>
                       </div>
                     ))}

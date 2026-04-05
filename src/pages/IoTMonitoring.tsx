@@ -5,8 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IoTSoilMonitor } from "@/lib/iot-monitoring";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useDialect } from "@/lib/use-dialect";
 
 const IoTMonitoring = () => {
+  const { t } = useTranslation();
+  const { localize } = useDialect();
   const [monitor] = useState(() => new IoTSoilMonitor());
   const [latestReadings, setLatestReadings] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -65,7 +69,7 @@ const IoTMonitoring = () => {
           <div className="flex items-center gap-4">
             <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
+              {t('disease.backHome')}
             </a>
           </div>
           <div className="flex items-center gap-2">
@@ -85,20 +89,19 @@ const IoTMonitoring = () => {
           >
             <div className="text-6xl mb-6">📡</div>
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              IoT Soil Monitoring System
+              {t('iot.title')}
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Real-time soil monitoring with AI-powered irrigation recommendations. 
-              Monitor moisture, pH, temperature, and nutrients across your entire farm.
+              {t('iot.subtitle')}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button size="lg" className="bg-gradient-primary">
                 <Wifi className="mr-2 w-5 h-5" />
-                Live Monitoring
+                {t('iot.liveMonitoring')}
               </Button>
               <Button size="lg" variant="outline">
                 <Activity className="mr-2 w-5 h-5" />
-                View Analytics
+                {t('iot.viewAnalytics')}
               </Button>
             </div>
           </motion.div>
@@ -108,7 +111,7 @@ const IoTMonitoring = () => {
       {/* Live Sensor Data */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">Live Sensor Data</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('iot.liveDataHeader')}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
             {latestReadings.map((reading, i) => (
               <Card key={i} className="p-6 hover:shadow-lg transition-all duration-300">
@@ -134,17 +137,17 @@ const IoTMonitoring = () => {
                   <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded">
                     <Droplets className="w-6 h-6 mx-auto mb-2 text-blue-500" />
                     <div className="font-bold text-blue-600">{reading.soilMoisture.toFixed(1)}%</div>
-                    <div className="text-xs text-muted-foreground">Moisture</div>
+                    <div className="text-xs text-muted-foreground">{t('iot.moisture')}</div>
                   </div>
                   <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded">
                     <Activity className="w-6 h-6 mx-auto mb-2 text-green-500" />
                     <div className="font-bold text-green-600">{reading.ph.toFixed(1)}</div>
-                    <div className="text-xs text-muted-foreground">pH</div>
+                    <div className="text-xs text-muted-foreground">{t('iot.ph')}</div>
                   </div>
                   <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/30 rounded">
                     <Thermometer className="w-6 h-6 mx-auto mb-2 text-orange-500" />
                     <div className="font-bold text-orange-600">{reading.temperature.toFixed(1)}°C</div>
-                    <div className="text-xs text-muted-foreground">Temperature</div>
+                    <div className="text-xs text-muted-foreground">{t('iot.temp')}</div>
                   </div>
                   <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/30 rounded">
                     <Zap className="w-6 h-6 mx-auto mb-2 text-purple-500" />
@@ -156,15 +159,15 @@ const IoTMonitoring = () => {
                 <div className="mt-4 pt-4 border-t">
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">N:</span>
+                      <span className="text-muted-foreground">{t('iot.nitrogen')}:</span>
                       <span>{reading.nitrogen.toFixed(1)} ppm</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">P:</span>
+                      <span className="text-muted-foreground">{t('iot.phosphorus')}:</span>
                       <span>{reading.phosphorus.toFixed(1)} ppm</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">K:</span>
+                      <span className="text-muted-foreground">{t('iot.potassium')}:</span>
                       <span>{reading.potassium.toFixed(1)} ppm</span>
                     </div>
                   </div>
@@ -178,14 +181,14 @@ const IoTMonitoring = () => {
       {/* Alerts and Recommendations */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">Alerts & Recommendations</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('iot.alertsTitle')} & {t('iot.recsTitle')}</h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
             
             {/* Active Alerts */}
             <Card className="p-6">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
-                Active Alerts ({alerts.length})
+                {t('iot.alertsCount', { count: alerts.length })}
               </h3>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {alerts.length > 0 ? alerts.map((alert, idx) => (
@@ -206,7 +209,7 @@ const IoTMonitoring = () => {
                 )) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <AlertTriangle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No active alerts</p>
+                    <p>{t('iot.noAlerts')}</p>
                   </div>
                 )}
               </div>
@@ -216,7 +219,7 @@ const IoTMonitoring = () => {
             <Card className="p-6">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Droplets className="w-5 h-5 text-blue-500" />
-                Irrigation Recommendations ({recommendations.length})
+                {t('iot.recsCount', { count: recommendations.length })}
               </h3>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {recommendations.length > 0 ? recommendations.map((rec, idx) => (
@@ -233,7 +236,7 @@ const IoTMonitoring = () => {
                     <div className="flex justify-between items-center mt-3">
                       <div className="text-sm">
                         <span className="font-medium capitalize">{rec.action}</span>
-                        {rec.duration > 0 && <span> for {rec.duration} min</span>}
+                        {rec.duration > 0 && <span> {t('iot.irrigationFor', { duration: rec.duration })}</span>}
                       </div>
                       {rec.action === 'irrigate' && (
                         <Button 
@@ -241,7 +244,7 @@ const IoTMonitoring = () => {
                           onClick={() => handleIrrigate(rec.zoneId, rec.duration)}
                           className="bg-blue-500 hover:bg-blue-600"
                         >
-                          Start Irrigation
+                          {t('iot.startIrrigation')}
                         </Button>
                       )}
                     </div>
@@ -249,7 +252,7 @@ const IoTMonitoring = () => {
                 )) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <Droplets className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No irrigation recommendations</p>
+                    <p>{t('iot.noRecs')}</p>
                   </div>
                 )}
               </div>
@@ -261,32 +264,32 @@ const IoTMonitoring = () => {
       {/* System Features */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-16">IoT System Features</h2>
+          <h2 className="text-4xl font-bold text-center mb-16">{t('iot.features.title')}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {[
               {
-                title: "Real-time Monitoring",
-                description: "24/7 continuous soil parameter monitoring",
+                title: t('iot.features.f1.title'),
+                description: t('iot.features.f1.desc'),
                 icon: "📊",
-                features: ["Soil Moisture", "pH Levels", "Temperature", "Conductivity"]
+                features: t('iot.features.f1.items', { returnObjects: true }) as string[]
               },
               {
-                title: "Smart Alerts",
-                description: "AI-powered alert system for critical conditions",
+                title: t('iot.features.f2.title'),
+                description: t('iot.features.f2.desc'),
                 icon: "🚨",
-                features: ["Threshold Alerts", "Predictive Warnings", "Mobile Notifications", "Email Reports"]
+                features: t('iot.features.f2.items', { returnObjects: true }) as string[]
               },
               {
-                title: "Auto Irrigation",
-                description: "Automated irrigation based on soil conditions",
+                title: t('iot.features.f3.title'),
+                description: t('iot.features.f3.desc'),
                 icon: "💧",
-                features: ["Smart Scheduling", "Zone Control", "Water Optimization", "Remote Control"]
+                features: t('iot.features.f3.items', { returnObjects: true }) as string[]
               },
               {
-                title: "Data Analytics",
-                description: "Historical data analysis and trend monitoring",
+                title: t('iot.features.f4.title'),
+                description: t('iot.features.f4.desc'),
                 icon: "📈",
-                features: ["Trend Analysis", "Performance Reports", "Yield Correlation", "ROI Tracking"]
+                features: t('iot.features.f4.items', { returnObjects: true }) as string[]
               }
             ].map((feature, i) => (
               <Card key={i} className="p-6 text-center hover:shadow-lg transition-all duration-300">
@@ -309,13 +312,13 @@ const IoTMonitoring = () => {
       {/* Benefits */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-16">IoT Monitoring Benefits</h2>
+          <h2 className="text-4xl font-bold mb-16">{t('iot.benefits.title')}</h2>
           <div className="grid md:grid-cols-4 gap-8 max-w-4xl mx-auto">
             {[
-              { title: "40% Water Savings", desc: "Precision irrigation control", icon: "💧" },
-              { title: "25% Yield Increase", desc: "Optimal growing conditions", icon: "📈" },
-              { title: "60% Labor Reduction", desc: "Automated monitoring", icon: "🤖" },
-              { title: "Real-time Insights", desc: "Instant decision making", icon: "⚡" }
+              { title: t('iot.benefits.b1.title'), desc: t('iot.benefits.b1.desc'), icon: "💧" },
+              { title: t('iot.benefits.b2.title'), desc: t('iot.benefits.b2.desc'), icon: "📈" },
+              { title: t('iot.benefits.b3.title'), desc: t('iot.benefits.b3.desc'), icon: "🤖" },
+              { title: t('iot.benefits.b4.title'), desc: t('iot.benefits.b4.desc'), icon: "⚡" }
             ].map((benefit, i) => (
               <Card key={i} className="p-6 hover:shadow-lg transition-all duration-300">
                 <div className="text-4xl mb-3">{benefit.icon}</div>

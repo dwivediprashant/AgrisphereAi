@@ -1,0 +1,28 @@
+[
+    {
+        "id": "neg_1775298605",
+        "listingId": "list_1767895336",
+        "buyerId": "GlwW61VqBdZCFcA6yoJ59qjnxCt1",
+        "buyerName": "muskan",
+        "sellerName": "priyanka",
+        "offerPrice": 4500,
+        "originalPrice": "5000",
+        "crop": "rice ",
+        "message": "do",
+        "status": "Pending",
+        "timestamp": "2026-04-04 16:00:05"
+    },
+    {
+        "id": "neg_1775298784",
+        "listingId": "list_1775298715",
+        "buyerId": "wEqIP5bVrjP2tKiLe8oU4kcAUCk2",
+        "buyerName": "sdfdf",
+        "sellerName": "muskan",
+        "offerPrice": 2000,
+        "originalPrice": "3000",
+        "crop": "wheat",
+        "message": "do",
+        "status": "Pending",
+        "timestamp": "2026-04-04 16:03:04"
+    }
+]

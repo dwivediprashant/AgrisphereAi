@@ -7,15 +7,26 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import {
     Search, Filter, MapPin, TrendingUp, Phone,
     MessageSquare, Star, Truck, Calendar, ShoppingBag,
-    Leaf, Info, ArrowUpRight, ArrowDownRight, Globe
+    Leaf, Info, ArrowUpRight, ArrowDownRight, Globe, Clock, CheckCircle2, AlertTriangle, ArrowRight
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import axios from 'axios';
 import { BuyerVoiceAssistant } from '@/components/BuyerVoiceAssistant';
+import { translateAnalysisResults } from '@/lib/ai-translation';
 
 interface Listing {
     id: string;
@@ -47,7 +58,7 @@ interface Interaction {
 }
 
 const BuyerDashboard = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { user } = useAuthStore();
     const { toast } = useToast();
     const API_URL = 'http://localhost:5000';
@@ -70,6 +81,14 @@ const BuyerDashboard = () => {
     // Interactions
     const [interactions, setInteractions] = useState<Interaction[]>([]);
 
+    // Negotiations State
+    const [sentNegotiations, setSentNegotiations] = useState<any[]>([]);
+    const [isNegOpen, setIsNegOpen] = useState(false);
+    const [negTarget, setNegTarget] = useState<Listing | null>(null);
+    const [offerPrice, setOfferPrice] = useState("");
+    const [offerMsg, setOfferMsg] = useState("");
+    const [negSubmitting, setNegSubmitting] = useState(false);
+
     const [contactModalOpen, setContactModalOpen] = useState(false);
     const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
     const [savedListings, setSavedListings] = useState<Set<string>>(new Set());
@@ -77,7 +96,18 @@ const BuyerDashboard = () => {
     useEffect(() => {
         fetchListings();
         fetchInteractions();
-    }, []);
+        if (user) fetchNegotiations();
+    }, [user]);
+
+    const fetchNegotiations = async () => {
+        if (!user) return;
+        try {
+            const res = await axios.get(`${API_URL}/negotiations?buyerName=${user.name}`);
+            setSentNegotiations(res.data);
+        } catch (err) {
+            console.error("Failed to fetch negotiations", err);
+        }
+    };
 
     const fetchListings = async () => {
         try {
@@ -98,9 +128,17 @@ const BuyerDashboard = () => {
                 crop: targetCrop,
                 state: targetState
             });
-            setInsight(res.data);
+            const rawInsight = res.data;
+            
+            const langMap: Record<string, string> = {
+                'en': 'English', 'hi': 'Hindi', 'bn': 'Bengali', 'as': 'Assamese', 'kn': 'Kannada'
+            };
+            const targetLang = langMap[i18n.language] || 'English';
+            
+            const translatedInsight = await translateAnalysisResults(rawInsight, targetLang);
+            setInsight(translatedInsight);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to fetch market insights", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('buyer.errorInsights'), variant: "destructive" });
         } finally {
             setInsightLoading(false);
         }
@@ -118,7 +156,7 @@ const BuyerDashboard = () => {
 
     const handleContact = async (listing: Listing) => {
         if (!user) {
-            toast({ title: "Login Required", description: "Please login as a buyer to contact farmers." });
+            toast({ title: t('buyer.loginRequired'), description: t('buyer.loginRequiredDesc') });
             return;
         }
 
@@ -135,6 +173,32 @@ const BuyerDashboard = () => {
             fetchInteractions();
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    const handleMakeOffer = async () => {
+        if (!offerPrice || !negTarget || !user) return;
+        setNegSubmitting(true);
+        try {
+            await axios.post(`${API_URL}/negotiations`, {
+                listingId: negTarget.id,
+                buyerId: user.id,
+                buyerName: user.name,
+                sellerName: negTarget.farmerName,
+                offerPrice: parseFloat(offerPrice),
+                originalPrice: negTarget.price,
+                crop: negTarget.cropName,
+                message: offerMsg,
+            });
+            toast({ title: t('common.success', { defaultValue: "Offer Sent!" }), description: `Your counter-offer for ${negTarget.cropName} has been submitted.` });
+            setIsNegOpen(false);
+            setOfferPrice("");
+            setOfferMsg("");
+            fetchNegotiations();
+        } catch (err) {
+            toast({ title: t('common.error'), description: "Failed to send offer.", variant: "destructive" });
+        } finally {
+            setNegSubmitting(false);
         }
     };
 
@@ -167,7 +231,7 @@ const BuyerDashboard = () => {
 
     const handlePostDemand = async () => {
         if (!demandData.crop || !demandData.quantity) {
-            toast({ variant: "destructive", description: "Please fill in required fields." });
+            toast({ variant: "destructive", description: t('buyer.fillFields') });
             return;
         }
 
@@ -182,7 +246,7 @@ const BuyerDashboard = () => {
             setDemandData({ crop: "", quantity: "", price: "", location: "" });
         } catch (error) {
             console.error(error);
-            toast({ variant: "destructive", description: "Failed to post demand." });
+            toast({ variant: "destructive", description: t('buyer.errorPostDemand') });
         }
     };
 
@@ -219,7 +283,7 @@ const BuyerDashboard = () => {
                                 </span>
                             </div>
                             <div className="text-xs text-slate-500">
-                                * Interactions are recorded in your "My Deals" tab.
+                                * {t('buyer.recordedNote')}
                             </div>
                             <div className="flex gap-2">
                                 <Button className="flex-1 bg-green-600 hover:bg-green-700">
@@ -253,7 +317,7 @@ const BuyerDashboard = () => {
                             <div className="space-y-2">
                                 <label className="text-xs text-slate-400">{t('buyer.demand.crop')}</label>
                                 <Select onValueChange={(v) => setDemandData({ ...demandData, crop: v })}>
-                                    <SelectTrigger className="bg-black/40 border-slate-700"><SelectValue placeholder="Select Crop" /></SelectTrigger>
+                                    <SelectTrigger className="bg-black/40 border-slate-700"><SelectValue placeholder={t('buyer.placeholders.selectCrop')} /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Wheat">Wheat</SelectItem>
                                         <SelectItem value="Rice">Rice</SelectItem>
@@ -315,7 +379,7 @@ const BuyerDashboard = () => {
                             <span className="text-slate-400 text-sm">{t('nav.farmerDashboard')}</span>
                         </div>
                         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-amber-600">
-                            {t('buyer.welcome', { name: user?.name || "Trader" })}
+                            {t('buyer.welcome', { name: user?.name || t('buyer.trader') })}
                         </h1>
                         <p className="text-slate-400 mt-1">{t('buyer.subtitle')}</p>
                     </div>
@@ -392,11 +456,11 @@ const BuyerDashboard = () => {
                         {/* Listings Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {loading ? (
-                                <div className="col-span-full text-center py-20 text-slate-500">Loading live marketplace...</div>
+                                <div className="col-span-full text-center py-20 text-slate-500">{t('buyer.loading')}</div>
                             ) : filteredListings.length === 0 ? (
                                 <div className="col-span-full text-center py-20 border border-dashed border-slate-800 rounded-xl">
                                     <Leaf className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                    <p className="text-slate-400">No listings found matching your criteria.</p>
+                                    <p className="text-slate-400">{t('buyer.noListings')}</p>
                                 </div>
                             ) : (
                                 filteredListings.map(listing => (
@@ -421,7 +485,7 @@ const BuyerDashboard = () => {
                                                     </CardDescription>
                                                 </div>
                                                 <Badge variant="secondary" className="bg-green-900/30 text-green-400 border-green-800 mr-8">
-                                                    {listing.quality || 'Grade A'}
+                                                    {listing.quality || t('buyer.gradeA')}
                                                 </Badge>
                                             </div>
                                         </CardHeader>
@@ -441,12 +505,68 @@ const BuyerDashboard = () => {
                                                 <div className="pt-2 border-t border-slate-800">
                                                     <div className="flex justify-between text-xs text-slate-500 mb-2">
                                                         <span>{t('buyer.card.farmer')}: {listing.farmerName}</span>
-                                                        <span>{t('buyer.card.harvest')}: {listing.harvestDate || 'Ready'}</span>
+                                                        <span>{t('buyer.card.harvest')}: {listing.harvestDate || t('buyer.ready')}</span>
                                                     </div>
                                                     <div className="flex gap-2 mb-2">
                                                         <Button className="flex-1 bg-white text-black hover:bg-slate-200" onClick={() => handleContact(listing)}>
                                                             <Phone className="w-4 h-4 mr-2" /> {t('buyer.card.callFarmer')}
                                                         </Button>
+                                                        {(!user || listing.farmerName.toLowerCase() !== user.name.toLowerCase()) && (
+                                                            <Dialog open={isNegOpen && negTarget?.id === listing.id} onOpenChange={(open) => {
+                                                                if (!user) {
+                                                                    toast({ title: t('buyer.loginRequired'), description: t('buyer.loginRequiredDesc') });
+                                                                    return;
+                                                                }
+                                                                setIsNegOpen(open);
+                                                                if (open) setNegTarget(listing);
+                                                            }}>
+                                                                <DialogTrigger asChild>
+                                                                    <Button className="flex-1 bg-slate-800 text-white hover:bg-slate-700">
+                                                                        🤝 {t('marketplace.negotiate', { defaultValue: 'Negotiate' })}
+                                                                    </Button>
+                                                                </DialogTrigger>
+                                                                <DialogContent className="bg-slate-900 border-slate-700 text-white">
+                                                                    <DialogHeader>
+                                                                        <DialogTitle>{t('marketplace.listings.negotiate.title', { crop: listing.cropName, defaultValue: `Negotiate for ${listing.cropName}` })}</DialogTitle>
+                                                                        <DialogDescription className="text-slate-400">
+                                                                            {t('marketplace.listings.negotiate.desc', { seller: listing.farmerName, defaultValue: `Propose a counter-offer to ${listing.farmerName}.` })}
+                                                                        </DialogDescription>
+                                                                    </DialogHeader>
+                                                                    <div className="grid gap-4 py-4">
+                                                                        <div className="grid grid-cols-4 items-center gap-4">
+                                                                            <Label htmlFor="price" className="text-right text-slate-300">Price/Q</Label>
+                                                                            <div className="col-span-3 flex items-center gap-4">
+                                                                                <div className="text-slate-500 line-through">₹{listing.price}</div>
+                                                                                <Input
+                                                                                    id="price"
+                                                                                    type="number"
+                                                                                    placeholder="Your best offer"
+                                                                                    className="col-span-2 bg-slate-800 border-slate-600 text-white"
+                                                                                    value={offerPrice}
+                                                                                    onChange={(e) => setOfferPrice(e.target.value)}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="grid grid-cols-4 items-center gap-4">
+                                                                            <Label htmlFor="msg" className="text-right text-slate-300">Message</Label>
+                                                                            <Input
+                                                                                id="msg"
+                                                                                placeholder="Add a message for the farmer"
+                                                                                className="col-span-3 bg-slate-800 border-slate-600 text-white"
+                                                                                value={offerMsg}
+                                                                                onChange={(e) => setOfferMsg(e.target.value)}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                    <DialogFooter>
+                                                                        <Button variant="outline" className="border-slate-700 text-white hover:bg-slate-800" onClick={() => setIsNegOpen(false)}>{t('common.cancel', { defaultValue: 'Cancel' })}</Button>
+                                                                        <Button onClick={handleMakeOffer} disabled={negSubmitting} className="bg-orange-600 hover:bg-orange-700 text-white">
+                                                                            {negSubmitting ? t('common.sending', { defaultValue: 'Sending...' }) : t('marketplace.listings.negotiate.send', { defaultValue: 'Send Counter-Offer' })}
+                                                                        </Button>
+                                                                    </DialogFooter>
+                                                                </DialogContent>
+                                                            </Dialog>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -497,7 +617,7 @@ const BuyerDashboard = () => {
                                         </div>
                                     )}
                                     <div className="space-y-2">
-                                        <label className="text-sm text-slate-400">Target Crop</label>
+                                        <label className="text-sm text-slate-400">{t('buyer.targetCrop')}</label>
                                         <Select value={targetCrop} onValueChange={setTargetCrop}>
                                             <SelectTrigger className="bg-black/20 border-slate-700">
                                                 <SelectValue />
@@ -510,7 +630,7 @@ const BuyerDashboard = () => {
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm text-slate-400">Target State</label>
+                                        <label className="text-sm text-slate-400">{t('buyer.targetState')}</label>
                                         <Select value={targetState} onValueChange={setTargetState}>
                                             <SelectTrigger className="bg-black/20 border-slate-700">
                                                 <SelectValue />
@@ -548,7 +668,7 @@ const BuyerDashboard = () => {
                                                 <div className="text-sm text-slate-500">{t('buyer.intelligence.forecast')}</div>
                                                 <div className={`text-xl font-bold mt-1 flex items-center gap-2 ${insight.price_forecast?.includes("Rise") ? "text-red-400" : "text-green-400"}`}>
                                                     {insight.price_forecast?.includes("Rise") ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                                                    {insight.price_forecast || "Unknown"}
+                                                    {insight.price_forecast || t('buyer.unknown')}
                                                 </div>
                                             </Card>
                                             <Card className="bg-slate-900 border-slate-800 p-4">
@@ -600,33 +720,94 @@ const BuyerDashboard = () => {
                     <TabsContent value="interactions" className="animate-in fade-in">
                         <Card className="bg-slate-900 border-slate-800">
                             <CardHeader>
-                                <CardTitle className="text-white">{t('buyer.tabs.deals')}</CardTitle>
+                                <CardTitle className="text-white flex items-center gap-2">
+                                    <MessageSquare className="w-5 h-5 text-green-400" />
+                                    {t('buyer.tabs.deals', { defaultValue: 'My Deals & Offers' })}
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
-                                    {interactions.length === 0 ? (
-                                        <p className="text-slate-500 italic p-4">No active deals yet.</p>
-                                    ) : (
-                                        interactions.map((int, i) => (
-                                            <div key={i} className="flex justify-between items-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-orange-600/20 text-orange-400 flex items-center justify-center font-bold">
-                                                        {int.farmerName[0]}
+                                <div className="space-y-6">
+                                    
+                                    {/* Sent Offers Section */}
+                                    {sentNegotiations.length > 0 && (
+                                        <div className="space-y-4 animate-in fade-in">
+                                            <h3 className="text-lg font-bold text-slate-300 border-b border-slate-800 pb-2 flex items-center gap-2">
+                                                <TrendingUp className="w-5 h-5 text-indigo-400" />
+                                                Active Negotiations
+                                                <Badge className="bg-indigo-900 text-indigo-200 ml-2">{sentNegotiations.length}</Badge>
+                                            </h3>
+                                            <div className="grid gap-3">
+                                                {sentNegotiations.map((neg) => (
+                                                    <div key={neg.id} className="flex flex-col md:flex-row justify-between md:items-center p-4 bg-slate-800/40 rounded-lg border-l-4 border-l-indigo-500 border-r border-t border-b border-slate-700/50 hover:bg-slate-800/60 transition-all gap-4">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                                                                <Leaf className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-white font-medium flex items-center gap-2 text-lg">
+                                                                    {neg.crop} 
+                                                                    <ArrowRight className="w-4 h-4 text-slate-500" /> 
+                                                                    <span className="text-green-400 font-bold">₹{neg.offerPrice}/Q</span>
+                                                                </div>
+                                                                <p className="text-sm text-slate-400">Offered to {neg.sellerName} | Original: ₹{neg.originalPrice}/Q</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="text-left md:text-right">
+                                                            <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">{t('common.status', { defaultValue: 'Status' })}</div>
+                                                            <Badge 
+                                                                className={`font-bold py-1 px-3 ${
+                                                                    neg.status === 'Pending' ? "bg-yellow-900/50 text-yellow-500 border-yellow-700/50" :
+                                                                    neg.status === 'Accepted' ? "bg-green-900/50 text-green-500 border-green-700/50" :
+                                                                    "bg-red-900/50 text-red-500 border-red-700/50"
+                                                                }`}
+                                                            >
+                                                                {neg.status === 'Pending' && <Clock className="w-3 h-3 mr-1 inline" />}
+                                                                {neg.status === 'Accepted' && <CheckCircle2 className="w-3 h-3 mr-1 inline" />}
+                                                                {neg.status === 'Rejected' && <AlertTriangle className="w-3 h-3 mr-1 inline" />}
+                                                                {neg.status}
+                                                            </Badge>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h4 className="text-white font-medium">{int.crop} Deal</h4>
-                                                        <p className="text-sm text-slate-400">with {int.farmerName}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <Badge className="bg-blue-900 text-blue-200 mb-1">{int.status}</Badge>
-                                                    <p className="text-xs text-slate-500">
-                                                        {new Date(int.timestamp).toLocaleDateString()}
-                                                    </p>
-                                                </div>
+                                                ))}
                                             </div>
-                                        ))
+                                        </div>
                                     )}
+
+                                    {/* Traditional Interactions / Calls */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-bold text-slate-300 border-b border-slate-800 pb-2 flex items-center gap-2">
+                                            <Phone className="w-5 h-5 text-emerald-400" />
+                                            Contacted Farmers
+                                            <Badge className="bg-emerald-900 text-emerald-200 ml-2">{interactions.length}</Badge>
+                                        </h3>
+                                        {interactions.length === 0 ? (
+                                            <div className="text-slate-500 italic p-6 text-center border border-dashed border-slate-800 rounded-lg">
+                                                {t('buyer.noDeals', { defaultValue: 'No interactions yet.' })}
+                                            </div>
+                                        ) : (
+                                            interactions.map((int, i) => (
+                                                <div key={i} className="flex justify-between items-center p-4 bg-slate-800/30 rounded-lg border border-slate-700">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                                                            {int.farmerName[0]}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-white font-medium">{t('buyer.dealLabel', { crop: int.crop, defaultValue: `${int.crop} Deal` })}</h4>
+                                                            <p className="text-sm text-slate-400">{t('buyer.withLabel', { name: int.farmerName, defaultValue: `with ${int.farmerName}` })}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <Badge className="bg-emerald-900 text-emerald-200 mb-1">Contacted</Badge>
+                                                        <p className="text-xs text-slate-500">
+                                                            {new Date(int.timestamp).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
                                 </div>
                             </CardContent>
                         </Card>

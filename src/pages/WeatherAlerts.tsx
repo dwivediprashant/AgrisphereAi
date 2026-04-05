@@ -14,8 +14,10 @@ import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 const WeatherAlerts = () => {
+    const { t } = useTranslation();
     const { toast } = useToast();
     const [state, setState] = useState("");
     const [district, setDistrict] = useState("");
@@ -49,16 +51,16 @@ const WeatherAlerts = () => {
             const res = await axios.post('http://localhost:5000/verify-phone', { phone });
             if (res.data.success) {
                 toast({
-                    title: "📞 Incoming Call from Twilio",
-                    description: `Answer the call and enter code: ${res.data.validation_code}`,
+                    title: t('weather.toasts.verifyTitle'),
+                    description: t('weather.toasts.verifyDesc', { code: res.data.validation_code }),
                     className: "bg-blue-600 text-white border-none text-lg p-6",
                     duration: 10000
                 });
             } else {
-                toast({ title: "Verification Failed", description: res.data.error, variant: "destructive" });
+                toast({ title: t('weather.toasts.verifyFailed'), description: res.data.error, variant: "destructive" });
             }
         } catch (e) {
-            toast({ title: "Error", description: "Verification request failed.", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('weather.toasts.verifyFailed'), variant: "destructive" });
         } finally {
             setVerifying(false);
         }
@@ -67,8 +69,8 @@ const WeatherAlerts = () => {
     const checkRisk = async () => {
         if (!state || !district) {
             toast({
-                title: "Location Required",
-                description: "Please select your State and District.",
+                title: t('marketplace.advisory.missingInfo'),
+                description: t('marketplace.advisory.selectPrompt'),
                 variant: "destructive"
             });
             return;
@@ -87,18 +89,18 @@ const WeatherAlerts = () => {
 
             if (response.data.risk.risk_level !== 'Safe') {
                 toast({
-                    title: "⚠️ Risk Detected",
+                    title: t('weather.toasts.riskTitle'),
                     description: response.data.alerts?.sms_sent
-                        ? `🚨 SMS Alert sent to ${phone}`
-                        : "Check app for details.",
+                        ? t('weather.toasts.smsSent', { phone: phone })
+                        : t('weather.riskDetected'),
                     variant: "destructive"
                 });
             } else {
                 toast({
-                    title: "✅ Conditions Safe",
+                    title: t('weather.toasts.safeTitle'),
                     description: response.data.alerts?.sms_sent
-                        ? `✅ SMS Report sent to ${phone}`
-                        : "No severe weather threats detected.",
+                        ? t('weather.toasts.smsSent', { phone: phone })
+                        : t('weather.toasts.safeDesc'),
                     className: "bg-green-600 text-white border-none shadow-lg"
                 });
             }
@@ -106,8 +108,8 @@ const WeatherAlerts = () => {
         } catch (error) {
             console.error("Weather Alert Error:", error);
             toast({
-                title: "Error",
-                description: "Could not fetch weather data. Please try again.",
+                title: t('common.error'),
+                description: t('marketplace.trends.fetchError'),
                 variant: "destructive"
             });
         } finally {
@@ -125,11 +127,10 @@ const WeatherAlerts = () => {
                         <ShieldAlert className="w-12 h-12 text-red-500" />
                     </div>
                     <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 bg-clip-text text-transparent">
-                        Weather Safety Shield
+                        {t('weather.title')}
                     </h1>
                     <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-                        Real-time threat detection for Floods, Heatwaves, and Droughts.
-                        Get instant alerts via App, SMS, and WhatsApp.
+                        {t('weather.subtitle')}
                     </p>
                 </div>
 
@@ -138,18 +139,18 @@ const WeatherAlerts = () => {
                     <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm h-fit">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-white">
-                                <MapPin className="text-indigo-400" /> Location & Contact
+                                <MapPin className="text-indigo-400" /> {t('weather.locationTitle')}
                             </CardTitle>
                             <CardDescription className="text-slate-400">
-                                Enter details to scan specifically for your farm location.
+                                {t('weather.locationDesc')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">State</label>
+                                <label className="text-sm font-medium text-slate-300">{t('marketplace.advisory.state')}</label>
                                 <Select onValueChange={(val) => { setState(val); setDistrict(""); }}>
                                     <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-11">
-                                        <SelectValue placeholder="Select State" />
+                                        <SelectValue placeholder={t('weather.selectState')} />
                                     </SelectTrigger>
                                     <SelectContent className="max-h-[300px] bg-slate-900 border-slate-700 text-white">
                                         {Object.keys(indianStates).map((s) => (
@@ -160,10 +161,10 @@ const WeatherAlerts = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">District</label>
+                                <label className="text-sm font-medium text-slate-300">{t('marketplace.advisory.district')}</label>
                                 <Select disabled={!state} onValueChange={setDistrict}>
                                     <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-11">
-                                        <SelectValue placeholder="Select District" />
+                                        <SelectValue placeholder={t('weather.selectDistrict')} />
                                     </SelectTrigger>
                                     <SelectContent className="max-h-[300px] bg-slate-900 border-slate-700 text-white">
                                         {state && indianStates[state]?.map((d) => (
@@ -175,8 +176,8 @@ const WeatherAlerts = () => {
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300 flex justify-between">
-                                    Phone Alert (SMS/WhatsApp)
-                                    <span className="text-xs text-slate-500 font-normal">Optional</span>
+                                    {t('weather.phoneLabel')}
+                                    <span className="text-xs text-slate-500 font-normal">{t('common.offline')}</span>
                                 </label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
@@ -193,7 +194,7 @@ const WeatherAlerts = () => {
                                         onClick={verifyPhoneNumber}
                                         disabled={verifying || !phone}
                                     >
-                                        {verifying ? "Calling..." : "Verify"}
+                                        {verifying ? t('weather.phoneCalling') : t('weather.phoneVerify')}
                                     </Button>
                                 </div>
                             </div>
@@ -206,10 +207,10 @@ const WeatherAlerts = () => {
                                 {loading ? (
                                     <>
                                         <Zap className="mr-2 h-5 w-5 animate-spin" />
-                                        Scanning Satellite Data...
+                                        {t('weather.scanning')}
                                     </>
                                 ) : (
-                                    "Scan for Risks Now"
+                                    t('weather.scanBtn')
                                 )}
                             </Button>
                         </CardContent>
@@ -231,7 +232,7 @@ const WeatherAlerts = () => {
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                         <CardTitle className="text-3xl font-black uppercase tracking-wider text-white">
-                                            {riskData.risk.risk_level === 'Safe' ? "System Safe" : `${riskData.risk.risk_level} ALERT`}
+                                            {riskData.risk.risk_level === 'Safe' ? t('weather.systemSafe') : `${riskData.risk.risk_level} ${t('weather.alert')}`}
                                         </CardTitle>
                                         <Badge variant={riskData.risk.risk_level === 'Safe' ? 'default' : 'destructive'} className="text-lg px-3 py-1">
                                             {riskData.risk.risk_level}
@@ -245,13 +246,13 @@ const WeatherAlerts = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="bg-black/20 p-4 rounded-xl backdrop-blur-md">
                                             <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-                                                <Flame className="w-4 h-4" /> Temperature
+                                                <Flame className="w-4 h-4" /> {t('weather.temp')}
                                             </div>
                                             <div className="text-2xl font-bold text-white">{riskData.risk.details.temp}°C</div>
                                         </div>
                                         <div className="bg-black/20 p-4 rounded-xl backdrop-blur-md">
                                             <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
-                                                <Droplets className="w-4 h-4" /> Humidity
+                                                <Droplets className="w-4 h-4" /> {t('weather.humidity')}
                                             </div>
                                             <div className="text-2xl font-bold text-white">{riskData.risk.details.humidity}%</div>
                                         </div>
@@ -265,9 +266,9 @@ const WeatherAlerts = () => {
                                     <ShieldAlert className="w-12 h-12 opacity-50" />
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-xl font-bold text-slate-400">System Standby</h3>
+                                    <h3 className="text-xl font-bold text-slate-400">{t('weather.standby')}</h3>
                                     <p className="max-w-xs mx-auto mt-2 text-sm">
-                                        Enter your location and click Scan to detect Flood, Heatwave, or Drought risks immediately.
+                                        {t('weather.placeholder')}
                                     </p>
                                 </div>
                             </div>

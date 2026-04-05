@@ -58,13 +58,13 @@ const FertilizerRecommendation = () => {
       const data = await response.json();
       setResult(data);
       toast({
-        title: "Recommendation Ready!",
-        description: "AI has generated your personalized farming plan.",
+        title: t('advisoryHub.success.addedSchemes'),
+        description: t('fertilizer.results.planTitle'),
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to connect to the recommendation engine. Is the server running?",
+        title: t('common.error'),
+        description: t('advisoryHub.error.loadSchemes'),
         variant: "destructive",
       });
       console.error(error);
@@ -108,8 +108,8 @@ const FertilizerRecommendation = () => {
 
     } catch (error) {
       toast({
-        title: "Voice Error",
-        description: "Could not generate voice explanation.",
+        title: t('common.voiceError'),
+        description: t('common.voiceError'),
         variant: "destructive"
       });
     } finally {
@@ -168,12 +168,12 @@ const FertilizerRecommendation = () => {
                       <SelectValue placeholder={t('fertilizer.selectCrop')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rice">Rice (Paddy)</SelectItem>
-                      <SelectItem value="wheat">Wheat</SelectItem>
-                      <SelectItem value="corn">Corn (Maize)</SelectItem>
-                      <SelectItem value="potato">Potato</SelectItem>
-                      <SelectItem value="cotton">Cotton</SelectItem>
-                      <SelectItem value="sugarcane">Sugarcane</SelectItem>
+                      <SelectItem value="rice">{t('common.crops.rice')}</SelectItem>
+                      <SelectItem value="wheat">{t('common.crops.wheat')}</SelectItem>
+                      <SelectItem value="corn">{t('common.crops.maize')}</SelectItem>
+                      <SelectItem value="potato">{t('common.crops.potato')}</SelectItem>
+                      <SelectItem value="cotton">{t('common.crops.cotton')}</SelectItem>
+                      <SelectItem value="sugarcane">{t('common.crops.sugarcane')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -345,7 +345,7 @@ const FertilizerRecommendation = () => {
                         ) : (
                           <Volume2 className="h-4 w-4 mr-1" />
                         )}
-                        {isSpeaking ? t('pest.stopBtn') : "Hindi"}
+                        {isSpeaking ? t('pest.stopBtn') : t('common.languages.hindi')}
                       </Button>
                       <Button
                         size="sm"
@@ -354,7 +354,7 @@ const FertilizerRecommendation = () => {
                         onClick={() => handleExplain("English")}
                         disabled={isExplaining || isSpeaking}
                       >
-                        English
+                        {t('common.languages.english')}
                       </Button>
                     </div>
                   </div>

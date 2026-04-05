@@ -18,8 +18,50 @@ import recommendation_engine
 import pest_engine
 import market_engine
 import weather_engine
+import ai_fallbacks
 import base64
 import uuid
+
+def call_groq_with_fallback(prompt, system_message="You are a helpful agricultural AI. Output valid JSON only.", response_format={"type": "json_object"}, temperature=0.2, max_tokens=600):
+    """
+    Call Groq API with automatic model fallback for rate limits and errors.
+    """
+    from groq import Groq
+    api_key = os.getenv("GROQ_API_KEY") or os.getenv("VITE_GROQ_CHATBOT_API_KEY")
+    if not api_key:
+        return None, "API Key missing"
+
+    client = Groq(api_key=api_key)
+    
+    # Model Priority: 
+    # 1. llama-3.3-70b-versatile (Highest quality)
+    # 2. llama-3.1-8b-instant (Fast, high rate limit)
+    # 3. mixtral-8x7b-32768 (Alternative)
+    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+    
+    last_error = None
+    for model in models:
+        try:
+            print(f"Attempting Groq call with model: {model}")
+            completion = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format=response_format
+            )
+            return completion.choices[0].message.content, None
+        except Exception as e:
+            last_error = str(e)
+            print(f"Groq error with {model}: {last_error}")
+            if "rate_limit_exceeded" in last_error.lower():
+                continue # Try next model
+            break # Other errors might not be recoverable by switching models
+            
+    return None, last_error
 
 MARKET_DATA_FILE = "market_data.json"
 LISTINGS_FILE = "listings.json"
@@ -115,37 +157,48 @@ def verify_plant_with_groq(image_path):
 
         prompt = "Strictly analyze this image. Is it a plant, crop, fruit, vegetable, leaf, or soil? Answer 'YES' only if it is clearly related to agriculture or nature. If it is a man-made object, animal, human, or random object (like candy, toy, car), answer 'NO'. Answer with just 'YES' or 'NO'."
 
-        completion = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
+        models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+        
+        last_error = None
+        for model in models:
+            try:
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[
                         {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    }
+                                }
+                            ]
                         }
-                    ]
-                }
-            ],
-            temperature=0.1,
-            max_tokens=10
-        )
-        
-        response = completion.choices[0].message.content.strip().upper()
-        print(f"Plant Verification Response: {response}")
-        
-        if "YES" in response:
-            return True, "Plant detected"
-        else:
-            return False, response
+                    ],
+                    temperature=0.1,
+                    max_tokens=10
+                )
+                
+                response = completion.choices[0].message.content.strip().upper()
+                print(f"Plant Verification Response ({model}): {response}")
+                
+                if "YES" in response:
+                    return True, "Plant detected"
+                else:
+                    return False, response
+            except Exception as e:
+                last_error = str(e)
+                print(f"Vision error with {model}: {last_error}")
+                continue
+                
+        return True, f"Verification skipped (All vision models failed: {last_error})" # Fail open
 
     except Exception as e:
-        print(f"Plant verification error: {e}")
-        return True, f"Verification skipped (Error: {str(e)})" # Fail open on error
+        print(f"Plant verification critical error: {e}")
+        return True, f"Verification skipped (Critical Error: {str(e)})" # Fail open on error
 
 import xgboost as xgb
 
@@ -749,14 +802,15 @@ def handle_voice_query():
         print(f"Voice Query Request Data: {data}") # Debug log
         query_text = data.get('text', '')
         language_code = data.get('language', 'en-IN')
+        dialect = data.get('dialect', 'Standard')
         
-        print(f"Processing Voice Query: '{query_text}' in Language: '{language_code}'") # Debug log
+        print(f"Processing Voice Query: '{query_text}' in Language: '{language_code}', Dialect: '{dialect}'") # Debug log
         
         if not query_text:
             return jsonify({'error': 'No query text provided'}), 400
         
         # Process query with voice assistant
-        response = voice_assistant.process_voice_input(query_text, language_code)
+        response = voice_assistant.process_voice_input(query_text, language_code, dialect)
         
         return jsonify({
             'success': True,
@@ -872,25 +926,20 @@ def recommend_fertilizer():
         }}
         """
 
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are a helpful agricultural AI. Output valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2,
-            max_tokens=600,
-            response_format={"type": "json_object"}
-        )
-
-        response_content = completion.choices[0].message.content
-        recommendation = json.loads(response_content)
+        response_content, error = call_groq_with_fallback(prompt)
         
+        if error:
+            print(f"All Groq models failed for fertilizer. Error: {error}. Falling back to simulation...")
+            return jsonify(ai_fallbacks.get_simulated_fertilizer_recommendation(data))
+
+        recommendation = json.loads(response_content)
         return jsonify(recommendation)
         
     except Exception as e:
         print(f"Groq Recommendation Error: {e}")
-        return jsonify({'error': str(e)}), 500
+        # Final Fallback to Simulation
+        print("Switching to Rule-based Simulation Fallback for Fertilizers...")
+        return jsonify(ai_fallbacks.get_simulated_fertilizer_recommendation(data))
 
 @app.route('/predict-pest', methods=['POST'])
 def predict_pest():
@@ -954,25 +1003,18 @@ def predict_pest():
         }}
         """
 
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are a helpful agricultural AI. Output valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2,
-            max_tokens=600,
-            response_format={"type": "json_object"}
-        )
-
-        response_content = completion.choices[0].message.content
-        result = json.loads(response_content)
+        response_content, error = call_groq_with_fallback(prompt)
         
+        if error:
+            print(f"All Groq models failed. Error: {error}. Falling back to simulation...")
+            return jsonify(ai_fallbacks.get_simulated_pest_prediction(data))
+
+        result = json.loads(response_content)
         return jsonify(result)
         
     except Exception as e:
-        print(f"Groq Pest Prediction Error: {e}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Pest Prediction Pipeline Error: {e}")
+        return jsonify(ai_fallbacks.get_simulated_pest_prediction(data))
 
 @app.route('/market-advisory', methods=['POST'])
 def market_advisory():
@@ -1045,7 +1087,7 @@ def handle_listings():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
             
-        required_fields = ['farmerName', 'contactNumber', 'cropName', 'quantity', 'price', 'location']
+        required_fields = ['farmerName', 'contactNumber', 'cropName', 'quantity', 'price', 'state', 'district']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing field: {field}'}), 400
@@ -1057,18 +1099,91 @@ def handle_listings():
             'cropName': data['cropName'],
             'quantity': data['quantity'],
             'price': data['price'],
-            'location': data['location'],
+            'state': data['state'],
+            'district': data['district'],
+            'location': f"{data['district']}, {data['state']}",
+            'logistics_partner': data.get('logistics_partner', True),
             'harvestDate': data.get('harvestDate', 'Not specified'),
             'quality': data.get('quality', 'Standard'),
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'verified': True # Mock verification
+            'verified': True 
         }
         
         listings = load_listings()
-        listings.insert(0, new_listing) # Add to top
+        listings.insert(0, new_listing)
         save_listings(listings)
         
         return jsonify(new_listing), 201
+
+NEGOTIATIONS_FILE = "market_negotiations.json"
+
+def load_negotiations():
+    if os.path.exists(NEGOTIATIONS_FILE):
+        try:
+            with open(NEGOTIATIONS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_negotiations(data):
+    with open(NEGOTIATIONS_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
+
+@app.route('/negotiations', methods=['GET', 'POST', 'PATCH'])
+def handle_negotiations():
+    if request.method == 'GET':
+        # Can filter by listingId or buyerId
+        listing_id = request.args.get('listingId')
+        buyer_id = request.args.get('buyerId')
+        buyer_name = request.args.get('buyerName')
+        seller_name = request.args.get('sellerName')
+        
+        negotiations = load_negotiations()
+        if listing_id:
+            negotiations = [n for n in negotiations if n['listingId'] == listing_id]
+        if buyer_id:
+            negotiations = [n for n in negotiations if n['buyerId'] == buyer_id]
+        if buyer_name:
+            negotiations = [n for n in negotiations if 'buyerName' in n and n['buyerName'].lower() == buyer_name.lower()]
+        if seller_name:
+            negotiations = [n for n in negotiations if 'sellerName' in n and n['sellerName'].lower() == seller_name.lower()]
+            
+        return jsonify(negotiations)
+        
+    if request.method == 'POST':
+        data = request.json
+        negotiation = {
+            'id': f"neg_{int(datetime.now().timestamp())}",
+            'listingId': data.get('listingId'),
+            'buyerId': data.get('buyerId'),
+            'buyerName': data.get('buyerName'),
+            'sellerName': data.get('sellerName'),
+            'offerPrice': data.get('offerPrice'),
+            'originalPrice': data.get('originalPrice'),
+            'crop': data.get('crop'),
+            'message': data.get('message'),
+            'status': 'Pending', # Pending, Accepted, Rejected
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        negotiations = load_negotiations()
+        negotiations.append(negotiation)
+        save_negotiations(negotiations)
+        return jsonify(negotiation), 201
+
+    if request.method == 'PATCH':
+        data = request.json
+        neg_id = data.get('id')
+        new_status = data.get('status')
+        
+        negotiations = load_negotiations()
+        for n in negotiations:
+            if n['id'] == neg_id:
+                n['status'] = new_status
+                break
+        save_negotiations(negotiations)
+        return jsonify({'status': 'updated'})
 
 
 
@@ -2101,7 +2216,91 @@ def analyze_satellite():
         print(f"Satellite analysis error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/localize-text', methods=['POST'])
+def localize_text_endpoint():
+    """Dynamically localize technical text into regional dialects using AI"""
+    try:
+        data = request.json
+        text = data.get('text', '')
+        language = data.get('language', 'Hindi')
+        dialect = data.get('dialect', 'Standard')
+        region = data.get('region', 'India')
+
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+
+        # Construct specific dialect prompt
+        prompt = f"""You are a local agricultural expert in {region}. 
+        Translate/Convert the following technical farming advice into {language} using the {dialect} dialect.
+        
+        RULES:
+        1. Keep the tone friendly and rural-accessible for farmers.
+        2. Use local agricultural terms (Desi words) common in {region} for {dialect}.
+        3. If it's a technical term like 'XGBoost' or 'NPK', keep it as is or use the common phonetic version.
+        4. Do NOT use complex academic language.
+        5. The goal is to make the farmer feel like they are talking to a neighbor.
+        
+        Text to localize: {text}
+        
+        Response format (JSON):
+        {{
+            "localized_text": "The localized version",
+            "dialect_used": "{dialect}",
+            "language": "{language}"
+        }}
+        """
+
+        # We can reuse the voice_assistant's Groq client for this
+        if not voice_assistant.client:
+             return jsonify({'localized_text': text, 'status': 'fallback_to_original'})
+
+        completion = voice_assistant.client.chat.completions.create(
+            model=voice_assistant.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=500,
+            response_format={ "type": "json_object" }
+        )
+
+        response_data = json.loads(completion.choices[0].message.content.strip())
+        return jsonify(response_data)
+
+    except Exception as e:
+        print(f"Localization error: {e}")
+        return jsonify({'localized_text': text, 'error': str(e), 'status': 'error_fallback'})
+
+@app.route('/simplify-text', methods=['POST'])
+def simplify_text_route():
+    """Simplify complex text for farmers using AI with fallback."""
+    try:
+        data = request.json
+        text = data.get('text', '')
+        language = data.get('language', 'Hindi')
+
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+
+        prompt = f"You are an expert agriculture advisor. Explain the following details to a farmer in simple {language}. Keep it short (2-3 sentences max) and easy to understand. Do not invent facts. \n\nDetails: {text}"
+        
+        response_content, error = call_groq_with_fallback(
+            prompt, 
+            system_message="You are a helpful agricultural assistant for Indian farmers.",
+            response_format=None, # Return plain text
+            max_tokens=200
+        )
+
+        if error:
+            print(f"Simplification failed, returning original text. Error: {error}")
+            return jsonify({'simplified_text': text, 'is_fallback': True})
+
+        return jsonify({'simplified_text': response_content, 'is_fallback': False})
+
+    except Exception as e:
+        print(f"Simplification critical error: {e}")
+        return jsonify({'simplified_text': text, 'error': str(e), 'is_fallback': True})
+
 if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
     print("\n" + "="*50)
     print("AgriSphere AI API Server Starting...")
     print("="*50)

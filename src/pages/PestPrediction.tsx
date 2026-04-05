@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,23 +9,60 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Leaf, Droplets, CloudRain, Thermometer, Volume2, Mic, StopCircle } from "lucide-react";
+import { Leaf, Droplets, CloudRain, Thermometer, Volume2, Mic, StopCircle, ArrowLeft } from "lucide-react";
 import { simplifyTextForFarmer, speakText } from "@/services/voiceService";
 import axios from 'axios';
 
 import { useTranslation } from "react-i18next";
+import { translateAnalysisResults } from "@/lib/ai-translation";
+import { useDialect } from "@/lib/use-dialect";
 
 const PestPrediction = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const navigate = useNavigate();
+    const { dialect, localize } = useDialect();
     const [crop, setCrop] = useState("rice");
     const [temp, setTemp] = useState(30);
     const [humidity, setHumidity] = useState(70);
     const [rainfall, setRainfall] = useState(50);
     const [loading, setLoading] = useState(false);
+    const [rawResult, setRawResult] = useState<any>(null);
     const [result, setResult] = useState<any>(null);
     const [explanation, setExplanation] = useState<string>("");
     const [isExplaining, setIsExplaining] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
+
+    React.useEffect(() => {
+        const translateData = async () => {
+            if (!rawResult) return;
+            
+            // Map the frontend language tag to the backend expectation for the analyzer
+            const langMap: Record<string, string> = {
+                'en': 'English',
+                'hi': 'Hindi',
+                'bn': 'Bengali',
+                'as': 'Assamese',
+                'kn': 'Kannada'
+            };
+            const targetLang = langMap[i18n.language] || 'English';
+            
+            // The AI only needs to translate if the target isn't English, 
+            // but the translation utility handles that conditionally
+            setLoading(true);
+            try {
+                // translateAnalysisResults is smart enough to skip translation if lang is English
+                const translated = await translateAnalysisResults(rawResult, targetLang);
+                setResult(translated);
+            } catch (error) {
+                console.error("Translation error:", error);
+                setResult(rawResult); // fallback to English
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        translateData();
+    }, [rawResult, i18n.language]);
 
     const handlePredict = async () => {
         setLoading(true);
@@ -35,7 +73,7 @@ const PestPrediction = () => {
                 humidity,
                 rainfall
             });
-            setResult(response.data);
+            setRawResult(response.data);
         } catch (error) {
             console.error("Prediction failed:", error);
         } finally {
@@ -43,7 +81,7 @@ const PestPrediction = () => {
         }
     };
 
-    const handleExplain = async (lang: "Hindi" | "English") => {
+    const handleExplain = async () => {
         if (!result) return;
 
         // Stop if already speaking
@@ -57,23 +95,46 @@ const PestPrediction = () => {
         setExplanation(""); // Clear previous
 
         try {
-            // Construct a data summary for the AI
-            const dataSummary = `
-                Crop: ${crop}.
-                Weather: ${temp}°C, ${humidity}% Humidity, ${rainfall}mm Rain.
-                Prediction: ${result.primary_pest.pest_name} with ${result.primary_pest.risk_level} risk (${result.primary_pest.risk_score}%).
-                Recommendation: ${result.primary_pest.recommendation}.
-            `;
+            // Map the frontend language tag
+            const langMap: Record<string, string> = {
+                'en': 'English',
+                'hi': 'Hindi',
+                'bn': 'Bengali',
+                'as': 'Assamese',
+                'kn': 'Kannada'
+            };
+            const lang = langMap[i18n.language] || 'English';
+            
+            const voiceMap: Record<string, string> = {
+                'en': 'en-US',
+                'hi': 'hi-IN',
+                'bn': 'bn-IN',
+                'as': 'en-US', // Fallback, web speech synthesis rarely has pure Assamese code
+                'kn': 'kn-IN'
+            };
+            const voiceLang = voiceMap[i18n.language] || 'en-US';
 
-            const text = await simplifyTextForFarmer(dataSummary, lang);
+            // Construct a data summary for the AI using i18n
+            const dataSummary = t('pest.summary.crop', { crop }) + " " +
+                t('pest.summary.weather', { temp, humidity, rainfall }) + " " +
+                t('pest.summary.prediction', { name: result.primary_pest.pest_name, level: result.primary_pest.risk_level, score: result.primary_pest.risk_score }) + " " +
+                t('pest.summary.recommendation', { recommendation: result.primary_pest.recommendation });
+
+            let text = await simplifyTextForFarmer(dataSummary, lang);
+            
+            // Apply Dialect Localization if needed
+            if (dialect !== 'Standard') {
+                text = await localize(text);
+            }
+            
             setExplanation(text);
 
             setIsSpeaking(true);
-            speakText(text, lang === "Hindi" ? "hi-IN" : "en-US");
+            speakText(text, voiceLang);
 
             // Monitor speech end (simple timeout approximation)
             const words = text.split(" ").length;
-            setTimeout(() => setIsSpeaking(false), words * 600);
+            setTimeout(() => setIsSpeaking(false), words * 800); // 800ms for regional languages (slower)
 
         } catch (error) {
             console.error(error);
@@ -90,6 +151,10 @@ const PestPrediction = () => {
 
     return (
         <div className="container mx-auto p-4 max-w-5xl">
+            <Button variant="ghost" className="mb-4 hover:bg-primary/10 px-0 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate("/")}>
+                <ArrowLeft className="h-4 w-4" /> {t('disease.backHome')}
+            </Button>
+
             <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
                 <Leaf className="h-8 w-8 text-green-600" />
                 {t('pest.title')}
@@ -110,11 +175,11 @@ const PestPrediction = () => {
                                     <SelectValue placeholder={t('pest.selectCrop')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="rice">Rice (Paddy)</SelectItem>
-                                    <SelectItem value="wheat">Wheat</SelectItem>
-                                    <SelectItem value="cotton">Cotton</SelectItem>
-                                    <SelectItem value="maize">Maize</SelectItem>
-                                    <SelectItem value="tomato">Tomato</SelectItem>
+                                    <SelectItem value="rice">{t('common.crops.rice')}</SelectItem>
+                                    <SelectItem value="wheat">{t('common.crops.wheat')}</SelectItem>
+                                    <SelectItem value="cotton">{t('common.crops.cotton')}</SelectItem>
+                                    <SelectItem value="maize">{t('common.crops.maize')}</SelectItem>
+                                    <SelectItem value="tomato">{t('common.crops.tomato')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -175,7 +240,7 @@ const PestPrediction = () => {
                                                 size="sm"
                                                 variant={isSpeaking ? "destructive" : "outline"}
                                                 className={isSpeaking ? "" : "border-indigo-500/30 hover:bg-indigo-500/10"}
-                                                onClick={() => handleExplain("Hindi")}
+                                                onClick={() => handleExplain()}
                                                 disabled={isExplaining}
                                             >
                                                 {isExplaining ? (
@@ -185,16 +250,7 @@ const PestPrediction = () => {
                                                 ) : (
                                                     <Volume2 className="h-4 w-4 mr-1" />
                                                 )}
-                                                {isSpeaking ? t('pest.stopBtn') : "Hindi"}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="border-indigo-500/30 hover:bg-indigo-500/10"
-                                                onClick={() => handleExplain("English")}
-                                                disabled={isExplaining || isSpeaking}
-                                            >
-                                                English
+                                                {isSpeaking ? t('pest.stopBtn') : t('pest.advisorDesc')}
                                             </Button>
                                         </div>
                                     </div>

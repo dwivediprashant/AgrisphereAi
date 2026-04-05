@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
@@ -20,9 +21,9 @@ import Marketplace from "./Marketplace";
 const ComprehensiveDashboard = () => {
   const { t } = useTranslation();
   const [gisEngine] = useState(() => new GISDigitalTwin());
-  const [farmData, setFarmData] = useState(null);
-  const [yieldPredictions, setYieldPredictions] = useState([]);
-  const [weatherData, setWeatherData] = useState(null);
+  const [farmData, setFarmData] = useState<any>(null);
+  const [yieldPredictions, setYieldPredictions] = useState<any[]>([]);
+  const [weatherData, setWeatherData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -90,10 +91,10 @@ const ComprehensiveDashboard = () => {
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
-              {t('nav.home')}
-            </a>
+              {t('disease.backHome')}
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌱</span>
@@ -430,31 +431,31 @@ const ComprehensiveDashboard = () => {
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <h3 className="text-xl font-bold capitalize">{t(`common.crops.${pred.crop}`)}</h3>
-                            <p className="text-muted-foreground">Kharif Season 2025</p>
+                            <p className="text-muted-foreground">{t('yield.kharifSeason')}</p>
                           </div>
                           <Badge className="bg-primary text-white">
                             {pred.crop === 'sugarcane'
-                              ? (pred.predicted_yield / 1000).toFixed(1) + ' tons/ha'
-                              : (pred.predicted_yield / 1000).toFixed(2) + ' tons/ha'
+                              ? (pred.predicted_yield / 1000).toFixed(1) + ' ' + t('yield.tonsPerHa')
+                              : (pred.predicted_yield / 1000).toFixed(2) + ' ' + t('yield.tonsPerHa')
                             }
                           </Badge>
                         </div>
 
                         <div className="space-y-3 mb-4">
                           <div className="flex justify-between">
-                            <span>Confidence Range:</span>
+                            <span>{t('yield.confidenceRange')}:</span>
                             <span className="font-medium">
-                              {(pred.confidence_interval.lower / 1000).toFixed(1)} - {(pred.confidence_interval.upper / 1000).toFixed(1)} tons/ha
+                              {(pred.confidence_interval.lower / 1000).toFixed(1)} - {(pred.confidence_interval.upper / 1000).toFixed(1)} {t('yield.tonsPerHa')}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span>5-Year Average:</span>
+                            <span>{t('yield.fiveYearAvg')}:</span>
                             <span className="font-medium">
-                              {(pred.historical_comparison.avg_yield_5yr / 1000).toFixed(1)} tons/ha
+                              {(pred.historical_comparison.avg_yield_5yr / 1000).toFixed(1)} {t('yield.tonsPerHa')}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Trend:</span>
+                            <span>{t('yield.trend')}:</span>
                             <Badge className={`${pred.historical_comparison.trend === 'increasing' ? 'bg-green-500' :
                               pred.historical_comparison.trend === 'decreasing' ? 'bg-red-500' : 'bg-yellow-500'
                               } text-white capitalize`}>
@@ -471,7 +472,7 @@ const ComprehensiveDashboard = () => {
                               <span>{pred.factors.crop_suitability}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span>Regional Performance:</span>
+                              <span>{t('yield.regionalPerformance')}:</span>
                               <span>{pred.factors.regional_performance}</span>
                             </div>
                             <div className="flex justify-between">
@@ -493,22 +494,22 @@ const ComprehensiveDashboard = () => {
                   <h3 className="text-xl font-bold mb-4">{t('farmerDashboard.yield.modelPerformance')}</h3>
                   <div className="grid md:grid-cols-4 gap-4">
                     <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                      <h4 className="font-medium mb-2">Random Forest</h4>
+                      <h4 className="font-medium mb-2">{t('yield.models.rf')}</h4>
                       <div className="text-2xl font-bold text-blue-600">94%</div>
                       <div className="text-sm text-muted-foreground">{t('farmerDashboard.metrics.accuracy')}</div>
                     </div>
                     <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                      <h4 className="font-medium mb-2">LSTM Networks</h4>
+                      <h4 className="font-medium mb-2">{t('yield.models.lstm')}</h4>
                       <div className="text-2xl font-bold text-green-600">92%</div>
                       <div className="text-sm text-muted-foreground">{t('farmerDashboard.metrics.accuracy')}</div>
                     </div>
                     <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
-                      <h4 className="font-medium mb-2">Gradient Boosting</h4>
+                      <h4 className="font-medium mb-2">{t('yield.models.gb')}</h4>
                       <div className="text-2xl font-bold text-purple-600">96%</div>
                       <div className="text-sm text-muted-foreground">{t('farmerDashboard.metrics.accuracy')}</div>
                     </div>
                     <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
-                      <h4 className="font-medium mb-2">XGBoost</h4>
+                      <h4 className="font-medium mb-2">{t('yield.models.xgb')}</h4>
                       <div className="text-2xl font-bold text-orange-600">95%</div>
                       <div className="text-sm text-muted-foreground">{t('farmerDashboard.metrics.accuracy')}</div>
                     </div>
@@ -516,7 +517,6 @@ const ComprehensiveDashboard = () => {
                 </Card>
               </div>
             </TabsContent>
-
 
             {/* Pest Prediction Tab */}
             <TabsContent value="pest-prediction">

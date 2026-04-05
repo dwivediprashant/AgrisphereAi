@@ -90,7 +90,7 @@ const GovDashboard = () => {
             setLoading(false);
         } catch (error) {
             console.error("Error fetching gov data:", error);
-            // toast({ title: t('common.error'), description: t('gov.error.fetch'), variant: "destructive" });
+            toast({ title: t('common.error'), description: t('gov.caseActions.errorFetch'), variant: "destructive" });
         }
     };
 
@@ -98,12 +98,12 @@ const GovDashboard = () => {
         try {
             await axios.post(`${API_URL}/gov/crop-loss/${id}/action`, { action });
             toast({
-                title: action === 'approve' ? "Case Approved" : action === 'reject' ? "Case Rejected" : "Verification Requested",
-                description: `Case ${id} has been updated.`
+                title: action === 'approve' ? t('gov.caseActions.approved') : action === 'reject' ? t('gov.caseActions.rejected') : t('gov.caseActions.verified'),
+                description: t('gov.caseActions.updated', { id })
             });
             fetchData(); // Refresh data
         } catch (error) {
-            toast({ title: "Error", description: "Failed to update case status", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('gov.caseActions.errorUpdate'), variant: "destructive" });
         }
     };
 
@@ -151,7 +151,7 @@ ${t('common.generatedOn')}: ${new Date().toLocaleString()}
 
 4. ${t('gov.tabs.market').toUpperCase()}
 - ${t('marketplace.listings.postBtn')}: ${stats.market.totalListings}
-- Total Volume Traded: ${stats.market.totalVolume} Q
+- ${t('gov.report.totalVolume')}: ${stats.market.totalVolume} Q
 
 ----------------------------------------
 ${t('gov.subtitle').toUpperCase()}
@@ -248,7 +248,7 @@ ${t('gov.subtitle').toUpperCase()}
                                                         </div>
                                                     </div>
                                                     {post.replies > 0 && (
-                                                        <Badge variant="secondary" className="bg-slate-800 text-slate-400 text-[10px]">{post.replies} Replies</Badge>
+                                                        <Badge variant="secondary" className="bg-slate-800 text-slate-400 text-[10px]">{post.replies} {t('gov.labels.replies')}</Badge>
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-slate-400 line-clamp-2 mb-2">{post.content}</p>
@@ -304,13 +304,13 @@ ${t('gov.subtitle').toUpperCase()}
                                                                 <Badge variant="outline" className="border-red-800 text-red-400 bg-red-950/30">{t('gov.cases.reviewRequired')}</Badge>
                                                             )}
                                                         </div>
-                                                        <h3 className="font-semibold text-lg text-slate-200 mt-1">{c.farmerName} • {c.crop} Loss</h3>
+                                                        <h3 className="font-semibold text-lg text-slate-200 mt-1">{c.farmerName} • {c.crop} {t('gov.labels.loss')}</h3>
                                                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400 mt-1">
-                                                            <span>Cause: {c.cause}</span>
-                                                            <span className="text-red-400 font-medium">Damage: {c.damagePercentage}%</span>
-                                                            <span>Est. Loss: ₹{c.estimatedLoss}</span>
+                                                            <span>{t('gov.labels.cause')}: {c.cause}</span>
+                                                            <span className="text-red-400 font-medium">{t('gov.labels.damage')}: {c.damagePercentage}%</span>
+                                                            <span>{t('gov.labels.estLoss')}: ₹{c.estimatedLoss}</span>
                                                             {c.suggestedScheme && c.suggestedScheme !== 'None' && (
-                                                                <span className="text-blue-400">Scheme: {c.suggestedScheme}</span>
+                                                                <span className="text-blue-400">{t('gov.labels.scheme')}: {c.suggestedScheme}</span>
                                                             )}
                                                         </div>
                                                     </div>

@@ -29,6 +29,8 @@ const AdvisoryHub = lazy(() => import("./pages/AdvisoryHub"));
 const BuyerDashboard = lazy(() => import("./pages/BuyerDashboard"));
 const CropLossForm = lazy(() => import("./pages/CropLossForm"));
 const YieldPrediction = lazy(() => import("./pages/YieldPrediction"));
+const SeedFinder = lazy(() => import("./pages/SeedFinder"));
+const BlockchainTraceability = lazy(() => import("./pages/BlockchainTraceability"));
 const AIChat = lazy(() => import("./components/AIChat"));
 
 const queryClient = new QueryClient();
@@ -87,6 +89,8 @@ const App = () => {
               <Route path="/digital-twin" element={<DigitalTwin />} />
               <Route path="/disease-detection" element={<DiseaseDetection />} />
               <Route path="/advisory-hub" element={<AdvisoryHub />} />
+              <Route path="/seed-finder" element={<SeedFinder />} />
+              <Route path="/traceability" element={<BlockchainTraceability />} />
               {/* Protected routes */}
               <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
               <Route path="/iot-monitoring" element={<ProtectedRoute><IoTMonitoring /></ProtectedRoute>} />

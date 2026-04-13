@@ -1,12 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
-import { speakText, stopSpeech } from '@/services/voiceService';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Send, X, Mic, MicOff, Volume2, Image as ImageIcon, X as XIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { chatWithAI, translateToHindi } from '@/lib/openai';
-import { mockChatWithAI } from '@/lib/mockAI';
+import { useState, useRef, useEffect } from "react";
+import { speakText, stopSpeech } from "@/services/voiceService";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  MessageCircle,
+  Send,
+  X,
+  Mic,
+  MicOff,
+  Volume2,
+  Image as ImageIcon,
+  X as XIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { chatWithAI, translateToHindi } from "@/lib/openai";
+import { mockChatWithAI } from "@/lib/mockAI";
+import { useTranslation } from "react-i18next";
 
 interface Message {
   id: string;
@@ -18,24 +28,27 @@ interface Message {
 }
 
 const AIChat = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>(() => [
     {
-      id: '1',
-      text: 'Hello! I am AgriSphere AI. Select your language to start chatting.\nनमस्ते! मैं AgriSphere AI हूं। बात करने के लिए अपनी भाषा चुनें।',
+      id: "1",
+      text: t("aiChat.welcomeMessage"),
       isUser: false,
-      timestamp: new Date()
-    }
+      timestamp: new Date(),
+    },
   ]);
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('hi-IN');
+  const [selectedLanguage, setSelectedLanguage] = useState("hi-IN");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Speech handling state
-  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(
+    null,
+  );
   const [isPaused, setIsPaused] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -43,13 +56,15 @@ const AIChat = () => {
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
     // Initialize speech recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+      const SpeechRecognition =
+        (window as any).webkitSpeechRecognition ||
+        (window as any).SpeechRecognition;
       recognition.current = new SpeechRecognition();
       recognition.current.continuous = false;
       recognition.current.interimResults = false;
@@ -117,12 +132,15 @@ const AIChat = () => {
       // Upload image first if selected
       if (selectedImage) {
         const formData = new FormData();
-        formData.append('image', selectedImage);
+        formData.append("image", selectedImage);
 
-        const uploadResponse = await fetch('http://localhost:5000/community/upload-image', {
-          method: 'POST',
-          body: formData
-        });
+        const uploadResponse = await fetch(
+          "http://localhost:5000/community/upload-image",
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
 
         const uploadData = await uploadResponse.json();
         imageUrl = uploadData.imageUrl;
@@ -133,11 +151,11 @@ const AIChat = () => {
         text: inputText || "📷 Image",
         isUser: true,
         timestamp: new Date(),
-        imageUrl: imageUrl || undefined
+        imageUrl: imageUrl || undefined,
       };
 
-      setMessages(prev => [...prev, userMessage]);
-      setInputText('');
+      setMessages((prev) => [...prev, userMessage]);
+      setInputText("");
       setSelectedImage(null);
       setImagePreview(null);
       setIsLoading(true);
@@ -145,14 +163,20 @@ const AIChat = () => {
       try {
         // Try OpenAI/Groq first, fallback to mock if it fails
         let aiResponse: string;
-        let hindiTranslation = '';
+        let hindiTranslation = "";
 
         try {
           // Pass selected language to get response in that language directly
-          aiResponse = await chatWithAI(inputText || "What can you tell me about this image?", 'general', selectedLanguage);
+          aiResponse = await chatWithAI(
+            inputText || "What can you tell me about this image?",
+            "general",
+            selectedLanguage,
+          );
         } catch (openaiError) {
-          console.log('OpenAI failed, using mock AI:', openaiError);
-          aiResponse = await mockChatWithAI(inputText || "What can you tell me about this image?");
+          console.log("OpenAI failed, using mock AI:", openaiError);
+          aiResponse = await mockChatWithAI(
+            inputText || "What can you tell me about this image?",
+          );
         }
 
         const aiMessage: Message = {
@@ -160,23 +184,23 @@ const AIChat = () => {
           text: aiResponse,
           // No separate 'hindi' property needed as 'text' is already in target language
           isUser: false,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
 
-        setMessages(prev => [...prev, aiMessage]);
+        setMessages((prev) => [...prev, aiMessage]);
       } catch (error) {
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
-          text: 'Sorry, I encountered an error. Please try again / क्षमा करें, त्रुटि हुई।',
+          text: "Sorry, I encountered an error. Please try again / क्षमा करें, त्रुटि हुई।",
           isUser: false,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
-        setMessages(prev => [...prev, errorMessage]);
+        setMessages((prev) => [...prev, errorMessage]);
       } finally {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       setIsLoading(false);
     }
   };
@@ -189,7 +213,7 @@ const AIChat = () => {
       try {
         recognition.current.start();
       } catch (error) {
-        console.error('Speech recognition start error:', error);
+        console.error("Speech recognition start error:", error);
         setIsListening(false);
       }
     }
@@ -200,7 +224,7 @@ const AIChat = () => {
       try {
         recognition.current.stop();
       } catch (error) {
-        console.error('Speech recognition stop error:', error);
+        console.error("Speech recognition stop error:", error);
       }
       setIsListening(false);
     }
@@ -231,7 +255,11 @@ const AIChat = () => {
           onClick={() => setIsOpen(!isOpen)}
           className="w-16 h-16 rounded-full bg-gradient-primary shadow-lg hover:shadow-xl transition-all duration-300"
         >
-          {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+          {isOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <MessageCircle className="w-6 h-6" />
+          )}
         </Button>
       </motion.div>
 
@@ -251,8 +279,10 @@ const AIChat = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">🤖</span>
                     <div>
-                      <h3 className="font-bold">AgriSphere AI</h3>
-                      <p className="text-xs text-muted-foreground">Agricultural Assistant</p>
+                      <h3 className="font-bold">{t("aiChat.title")}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {t("aiChat.subtitle")}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -287,13 +317,14 @@ const AIChat = () => {
                     key={message.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[85%] p-3 rounded-lg ${message.isUser
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                        }`}
+                      className={`max-w-[85%] p-3 rounded-lg ${
+                        message.isUser
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
                     >
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
                         {message.text}
@@ -304,7 +335,9 @@ const AIChat = () => {
                             src={message.imageUrl}
                             alt="Shared image"
                             className="rounded-lg max-w-full max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(message.imageUrl, '_blank')}
+                            onClick={() =>
+                              window.open(message.imageUrl, "_blank")
+                            }
                           />
                         </div>
                       )}
@@ -314,9 +347,15 @@ const AIChat = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleSpeak(message.text, message.id)}
-                            className={`h-6 w-6 p-0 hover:bg-black/10 rounded-full ${speakingMessageId === message.id ? 'text-primary' : ''}`}
-                            title={speakingMessageId === message.id && !isPaused ? "Pause" : "Listen in Hindi"}
+                            onClick={() =>
+                              handleSpeak(message.text, message.id)
+                            }
+                            className={`h-6 w-6 p-0 hover:bg-black/10 rounded-full ${speakingMessageId === message.id ? "text-primary" : ""}`}
+                            title={
+                              speakingMessageId === message.id && !isPaused
+                                ? t("aiChat.pause")
+                                : t("aiChat.listenHindi")
+                            }
                           >
                             {speakingMessageId === message.id && !isPaused ? (
                               <span className="text-xs font-bold">⏸️</span>
@@ -332,7 +371,7 @@ const AIChat = () => {
                               variant="ghost"
                               onClick={handleStopSpeech}
                               className="h-6 w-6 p-0 hover:bg-red-100 text-red-500 rounded-full"
-                              title="Stop Speaking"
+                              title={t("aiChat.stopSpeaking")}
                             >
                               <span className="text-xs font-bold">⏹️</span>
                             </Button>
@@ -351,8 +390,14 @@ const AIChat = () => {
                     <div className="bg-muted p-3 rounded-lg">
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div
+                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
                       </div>
                     </div>
                   </motion.div>
@@ -402,29 +447,42 @@ const AIChat = () => {
                   <Input
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder={selectedLanguage === 'en-IN' ? "Ask your question..." : "Ask in your language..."}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder={
+                      selectedLanguage === "en-IN"
+                        ? "Ask your question..."
+                        : "Ask in your language..."
+                    }
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                     disabled={isLoading}
                   />
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={isListening ? stopListening : startListening}
-                    className={`transition-all duration-300 ${isListening ? 'bg-red-500 text-white animate-pulse' : ''
-                      }`}
+                    className={`transition-all duration-300 ${
+                      isListening ? "bg-red-500 text-white animate-pulse" : ""
+                    }`}
                   >
-                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    {isListening ? (
+                      <MicOff className="w-4 h-4" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
                   </Button>
                   <Button
                     size="sm"
                     onClick={handleSendMessage}
-                    disabled={(!inputText.trim() && !selectedImage) || isLoading}
+                    disabled={
+                      (!inputText.trim() && !selectedImage) || isLoading
+                    }
                   >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  {selectedLanguage === 'en-IN' ? "Speak or type in English" : "Speak or type in your language"}
+                  {selectedLanguage === "en-IN"
+                    ? "Speak or type in English"
+                    : "Speak or type in your language"}
                 </p>
               </div>
             </Card>

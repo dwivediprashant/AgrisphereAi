@@ -125,7 +125,7 @@ class AgriVoiceAssistant:
             }
         }
     
-    def process_voice_input(self, text, language_code="en-IN", dialect="Standard"):
+    def process_voice_input(self, text, language_code="en-IN"):
         """Process voice input and generate appropriate response"""
         text = text.lower().strip()
         
@@ -133,7 +133,7 @@ class AgriVoiceAssistant:
         text = self.normalize_text(text)
         
         # Identify query type and generate response
-        response = self.generate_response(text, language_code, dialect)
+        response = self.generate_response(text, language_code)
         
         return response
     
@@ -143,13 +143,13 @@ class AgriVoiceAssistant:
         text = text.replace('?', ' ').replace('.', ' ').replace(',', ' ').replace('!', ' ')
         return text.strip()
     
-    def generate_response(self, text, language_code="en-IN", dialect="Standard"):
+    def generate_response(self, text, language_code="en-IN"):
         """Generate appropriate agricultural response"""
         
         # 1. General Fallback to Groq AI
-        return self.call_groq_api(text, language_code, dialect)
+        return self.call_groq_api(text, language_code)
 
-    def call_groq_api(self, text, language_code="en-IN", dialect="Standard"):
+    def call_groq_api(self, text, language_code="en-IN"):
         """Call Groq API for general queries with fallback"""
         if not self.client:
             return self.handle_general_fallback(text, language_code)
@@ -159,22 +159,17 @@ class AgriVoiceAssistant:
             system_instruction = f"""You are AgriSphere AI, an expert agricultural assistant for Indian farmers. 
             You provide accurate, practical farming advice strictly following ICAR (Indian Council of Agricultural Research) and FAO protocols.
             
-            IMPORTANT: LANGUAGE & DIALECT INSTRUCTION
+            IMPORTANT: LANGUAGE INSTRUCTION
             Native Target Language: '{language_code}'
-            Regional Dialect: '{dialect}'
             
-            1. You MUST reply in the '{language_code}' language, but specifically using the '{dialect}' dialect vocabulary and tone if it is not 'Standard'.
-            2. If dialect is 'Standard', use the standard version of '{language_code}'.
-            3. IGNORE the language of the user's input for your output.
-            4. If the selected language is a tribal language (e.g., Ao Naga, Garo) and you cannot write it perfectly, use the closest regional dialect that the farmer would understand.
-            5. For dialects like Bhojpuri, Maithili, etc., use the Devanagari script but the local dialect's grammar and words.
+            1. You MUST reply in the '{language_code}' language.
             
             Required JSON Structure:
             {{
-                "text": "Detailed, helpful answer (2-3 sentences max) in {language_code} ({dialect} dialect).",
-                "audio_text": "A shorter, conversational version for text-to-speech (1 sentence) in {language_code} ({dialect} dialect).",
-                "solution": "Key action item or direct solution (very brief) in {language_code} ({dialect} dialect).",
-                "timing": "Best time to apply/do this (optional, string) in {language_code} ({dialect} dialect)."
+                "text": "Detailed, helpful answer (2-3 sentences max) in {language_code}.",
+                "audio_text": "A shorter, conversational version for text-to-speech (1 sentence) in {language_code}.",
+                "solution": "Key action item or direct solution (very brief) in {language_code}.",
+                "timing": "Best time to apply/do this (optional, string) in {language_code}."
             }}
             
             Do NOT use markdown code blocks. Just valid JSON string.

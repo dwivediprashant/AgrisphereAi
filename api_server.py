@@ -1050,15 +1050,14 @@ def handle_voice_query():
         print(f"Voice Query Request Data: {data}") # Debug log
         query_text = data.get('text', '')
         language_code = data.get('language', 'en-IN')
-        dialect = data.get('dialect', 'Standard')
         
-        print(f"Processing Voice Query: '{query_text}' in Language: '{language_code}', Dialect: '{dialect}'") # Debug log
+        print(f"Processing Voice Query: '{query_text}' in Language: '{language_code}'") # Debug log
         
         if not query_text:
             return jsonify({'error': 'No query text provided'}), 400
         
         # Process query with voice assistant
-        response = voice_assistant.process_voice_input(query_text, language_code, dialect)
+        response = voice_assistant.process_voice_input(query_text, language_code)
         
         return jsonify({
             'success': True,
@@ -2474,51 +2473,21 @@ def analyze_satellite():
 
 @app.route('/localize-text', methods=['POST'])
 def localize_text_endpoint():
-    """Dynamically localize technical text into regional dialects using AI"""
+    """Localize text - deprecated, kept for backward compatibility"""
     try:
         data = request.json
         text = data.get('text', '')
         language = data.get('language', 'Hindi')
-        dialect = data.get('dialect', 'Standard')
-        region = data.get('region', 'India')
 
         if not text:
             return jsonify({'error': 'No text provided'}), 400
 
-        # Construct specific dialect prompt
-        prompt = f"""You are a local agricultural expert in {region}. 
-        Translate/Convert the following technical farming advice into {language} using the {dialect} dialect.
-        
-        RULES:
-        1. Keep the tone friendly and rural-accessible for farmers.
-        2. Use local agricultural terms (Desi words) common in {region} for {dialect}.
-        3. If it's a technical term like 'XGBoost' or 'NPK', keep it as is or use the common phonetic version.
-        4. Do NOT use complex academic language.
-        5. The goal is to make the farmer feel like they are talking to a neighbor.
-        
-        Text to localize: {text}
-        
-        Response format (JSON):
-        {{
-            "localized_text": "The localized version",
-            "dialect_used": "{dialect}",
-            "language": "{language}"
-        }}
-        """
-
-        # We can reuse the voice_assistant's Groq client for this
-        if not voice_assistant.client:
-             return jsonify({'localized_text': text, 'status': 'fallback_to_original'})
-
-        completion = voice_assistant.client.chat.completions.create(
-            model=voice_assistant.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=500,
-            response_format={ "type": "json_object" }
-        )
-
-        response_data = json.loads(completion.choices[0].message.content.strip())
+        # Return text as-is (no dialect localization)
+        return jsonify({
+            'localized_text': text,
+            'language': language,
+            'status': 'no_localization'
+        })
         return jsonify(response_data)
 
     except Exception as e:
@@ -2566,6 +2535,7 @@ def get_daily_bulletin():
         district = data.get('district', 'Amritsar')
         crop = data.get('crop', 'Rice')
         language = data.get('language', 'Hindi')
+        is_hindi = str(language).lower().startswith('hi')
 
         # 0. Resolve Location if coords provided
         if lat and lon:
@@ -2621,12 +2591,21 @@ def get_daily_bulletin():
         response_content, error = call_groq_with_fallback(prompt)
         
         if error or not response_content:
+             if is_hindi:
+                 return jsonify({
+                     "greeting": "नमस्ते!",
+                     "weather_summary": "आज मौसम सामान्य रहने की संभावना है।",
+                     "market_summary": "बाजार भाव स्थिर हैं।",
+                     "voice_script": "नमस्ते! आज मौसम सामान्य रहने की संभावना है और बाजार भाव स्थिर हैं। सुरक्षित रहें।",
+                     "weather_risk": "Safe"
+                 })
+
              # Fallback
              return jsonify({
-                 "greeting": "नमस्ते!",
-                 "weather_summary": "आज मौसम सामान्य रहने की संभावना है।",
-                 "market_summary": "बाजार भाव स्थिर हैं।",
-                 "voice_script": "नमस्ते! आज मौसम सामान्य रहने की संभावना है और बाजार भाव स्थिर हैं। सुरक्षित रहें।",
+                 "greeting": "Hello!",
+                 "weather_summary": "Weather is expected to remain mostly normal today.",
+                 "market_summary": "Market prices are likely to stay steady.",
+                 "voice_script": "Hello! Weather is expected to remain mostly normal today and market prices are likely to stay steady. Stay safe.",
                  "weather_risk": "Safe"
              })
 

@@ -49,8 +49,8 @@ const SeedFinder = () => {
         title: t("seeds.toasts.found"),
         description:
           results.length > 0
-            ? `Showing ${results.length} nearby farming shops.`
-            : "No nearby farming shops found.",
+            ? t("seedFinder.showingResults", { count: results.length })
+            : t("seedFinder.noNearbyShops"),
         className: "bg-green-600 text-white border-none",
       });
     } catch (error) {
@@ -58,9 +58,7 @@ const SeedFinder = () => {
       toast({
         title: t("common.error"),
         description:
-          error instanceof Error
-            ? error.message
-            : "Unable to search Google Places for nearby farming shops.",
+          error instanceof Error ? error.message : t("seedFinder.searchError"),
         variant: "destructive",
       });
     } finally {
@@ -188,24 +186,27 @@ const SeedFinder = () => {
           </div>
 
           <div className="flex items-center justify-between gap-3 pt-2">
-            <h2 className="text-xl font-semibold text-white">Nearby shops</h2>
+            <h2 className="text-xl font-semibold text-white">
+              {t("seedFinder.nearbyShops")}
+            </h2>
           </div>
 
           {!hasSearched ? (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-6 py-10 text-center text-slate-300">
               <p className="text-lg font-medium text-white">
-                You have not searched yet.
+                {t("seedFinder.notSearched")}
               </p>
               <p className="mt-2 text-sm text-slate-400">
-                Use one of the map buttons to load farm shops near your current
-                location or saved address.
+                {t("seedFinder.searchHint")}
               </p>
             </div>
           ) : sortedShops.length === 0 ? (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-6 py-10 text-center text-slate-300">
-              <p className="text-lg font-medium text-white">No shops found.</p>
+              <p className="text-lg font-medium text-white">
+                {t("seedFinder.noShopsFound")}
+              </p>
               <p className="mt-2 text-sm text-slate-400">
-                Try the other location option or search from a different area.
+                {t("seedFinder.tryAnotherLocation")}
               </p>
             </div>
           ) : (
@@ -223,7 +224,7 @@ const SeedFinder = () => {
                         variant="outline"
                         className="border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
                       >
-                        Farming shop
+                        {t("seedFinder.farmingShop")}
                       </Badge>
                       <span className="text-slate-400 text-sm flex items-center gap-1">
                         <Navigation className="w-3 h-3" /> {shop.distance}{" "}
@@ -271,16 +272,16 @@ const SeedFinder = () => {
                       className="w-full bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => window.open(shop.googleMapsUrl, "_blank")}
                     >
-                      <Navigation className="w-4 h-4 mr-2" /> View on Google
-                      Maps
+                      <Navigation className="w-4 h-4 mr-2" />
+                      {t("seedFinder.viewOnMaps")}
                     </Button>
                     <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-3">
                       <div className="flex flex-col">
                         <span className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                          Phone number
+                          {t("seedFinder.phoneNumber")}
                         </span>
                         <span className="text-sm font-medium text-slate-200">
-                          {shop.phone || "Not available"}
+                          {shop.phone || t("seedFinder.notAvailable")}
                         </span>
                       </div>
                       <Button
@@ -291,7 +292,8 @@ const SeedFinder = () => {
                         }
                         disabled={!shop.phone}
                       >
-                        <Phone className="w-4 h-4 mr-2" /> Call to shop
+                        <Phone className="w-4 h-4 mr-2" />
+                        {t("seedFinder.callToShop")}
                       </Button>
                     </div>
                   </CardFooter>

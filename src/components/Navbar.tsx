@@ -100,7 +100,9 @@ const Navbar = () => {
     if (isGov)
       return item.gov === true || (item.public && item.name === t("nav.home"));
     if (isBuyer)
-      return item.buyer === true || (item.public && item.name === t("nav.home"));
+      return (
+        item.buyer === true || (item.public && item.name === t("nav.home"))
+      );
     return item.gov === false && item.buyer !== true;
   });
 
@@ -125,7 +127,8 @@ const Navbar = () => {
   ];
 
   const isAiToolsActive = aiTools.some(
-    (tool) => location.pathname.replace(/\/+$/, "") === tool.path.replace(/\/+$/, ""),
+    (tool) =>
+      location.pathname.replace(/\/+$/, "") === tool.path.replace(/\/+$/, ""),
   );
 
   const isLinkActive = (path: string) =>
@@ -140,111 +143,118 @@ const Navbar = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-        <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => navigate("/")}>
-          <img
-            src="/Screenshot 2025-11-21 114200.png"
-            alt="AgriSphere AI Logo"
-            className="w-10 h-10 rounded-full object-cover shadow-glow-primary border-2 border-primary/30"
-          />
-          <span className="text-xl font-bold gradient-text">AgriSphere AI</span>
-        </div>
+    <>
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+          <div
+            className="flex items-center gap-2 cursor-pointer shrink-0"
+            onClick={() => navigate("/")}
+          >
+            <img
+              src="/Screenshot 2025-11-21 114200.png"
+              alt="AgriSphere AI Logo"
+              className="w-10 h-10 rounded-full object-cover shadow-glow-primary border-2 border-primary/30"
+            />
+            <span className="text-xl font-bold gradient-text">
+              AgriSphere AI
+            </span>
+          </div>
 
-        <nav className="flex flex-1 min-w-0 items-center gap-2 overflow-x-auto whitespace-nowrap py-1">
-          {mainLinks.map((item, i) => (
-            <div key={item.name} className="shrink-0">
-              <button
-                type="button"
-                onClick={() => navigate(item.path)}
-                className={`group relative inline-flex items-center rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                  isLinkActive(item.path)
-                    ? "bg-primary/10 text-foreground shadow-sm"
-                    : "text-foreground/70 hover:text-foreground"
-                }`}
-              >
-                {item.name}
-                <span
-                  className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-green-500 transition-transform duration-300 ${
+          <nav className="flex flex-1 min-w-0 items-center gap-2 overflow-x-auto whitespace-nowrap py-1">
+            {mainLinks.map((item, i) => (
+              <div key={item.name} className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  className={`group relative inline-flex items-center rounded-full px-3 py-2 text-sm font-medium transition-colors ${
                     isLinkActive(item.path)
-                      ? "scale-x-100"
-                      : "scale-x-0 group-hover:scale-x-100"
+                      ? "bg-primary/10 text-foreground shadow-sm"
+                      : "text-foreground/70 hover:text-foreground"
                   }`}
-                />
-              </button>
-                </div>
-          ))}
-
-          {isFarmer && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={`group relative inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium outline-none transition-colors ${
-                  isAiToolsActive
-                    ? "bg-primary/10 text-foreground"
-                    : "text-foreground/70 hover:text-foreground"
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-primary" />
-                {t("nav.aiTools")}
-                <ChevronDown className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
-                <span
-                  className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-green-500 transition-transform duration-300 ${
-                    isAiToolsActive ? "scale-x-100" : "scale-x-0"
-                  }`}
-                />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="bg-background/95 backdrop-blur-xl border-border/50 min-w-[200px]"
-                align="start"
-              >
-                {aiTools.map((tool) => (
-                  <DropdownMenuItem
-                    key={tool.name}
-                    className={`cursor-pointer transition-colors ${
-                      isAiToolActive(tool.path)
-                        ? "bg-green-500/10 text-green-600 font-semibold"
-                        : "hover:bg-primary/10"
+                >
+                  {item.name}
+                  <span
+                    className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-green-500 transition-transform duration-300 ${
+                      isLinkActive(item.path)
+                        ? "scale-x-100"
+                        : "scale-x-0 group-hover:scale-x-100"
                     }`}
-                    onClick={() => navigate(tool.path)}
-                  >
-                    {tool.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </nav>
+                  />
+                </button>
+              </div>
+            ))}
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
-          <LanguageSwitcher />
-          <ThemeToggle />
-          {!isAuthenticated && (
-            <>
-              <Button
-                variant="outline"
-                className="inline-flex text-xs sm:text-sm px-2 sm:px-3"
-                onClick={() => navigate("/login")}
-              >
-                {t("nav.login")}
-              </Button>
-              <Button
-                className="bg-gradient-primary hover:shadow-glow-primary transition-all duration-300 text-xs sm:text-sm px-2 sm:px-4"
-                onClick={() => navigate("/signup")}
-              >
-                {t("nav.getStarted")}
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </>
-          )}
-          {isAuthenticated && (
-            <>
-              <NotificationCenter />
-              <UserProfileMenu />
-            </>
-          )}
+            {isFarmer && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={`group relative inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium outline-none transition-colors ${
+                    isAiToolsActive
+                      ? "bg-primary/10 text-foreground"
+                      : "text-foreground/70 hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  {t("nav.aiTools")}
+                  <ChevronDown className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
+                  <span
+                    className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-green-500 transition-transform duration-300 ${
+                      isAiToolsActive ? "scale-x-100" : "scale-x-0"
+                    }`}
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="bg-background/95 backdrop-blur-xl border-border/50 min-w-[200px]"
+                  align="start"
+                >
+                  {aiTools.map((tool) => (
+                    <DropdownMenuItem
+                      key={tool.name}
+                      className={`cursor-pointer transition-colors ${
+                        isAiToolActive(tool.path)
+                          ? "bg-green-500/10 text-green-600 font-semibold"
+                          : "hover:bg-primary/10"
+                      }`}
+                      onClick={() => navigate(tool.path)}
+                    >
+                      {tool.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            {!isAuthenticated && (
+              <>
+                <Button
+                  variant="outline"
+                  className="inline-flex text-xs sm:text-sm px-2 sm:px-3"
+                  onClick={() => navigate("/login")}
+                >
+                  {t("nav.login")}
+                </Button>
+                <Button
+                  className="bg-gradient-primary hover:shadow-glow-primary transition-all duration-300 text-xs sm:text-sm px-2 sm:px-4"
+                  onClick={() => navigate("/signup")}
+                >
+                  {t("nav.getStarted")}
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </>
+            )}
+            {isAuthenticated && (
+              <>
+                <NotificationCenter />
+                <UserProfileMenu />
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 };
 
@@ -535,8 +545,10 @@ const UserProfileMenu = () => {
               <div className="space-y-2">
                 <Label>{t("profile.location")}</Label>
                 <p className="text-xs text-slate-500">
-                  Fill the fields below so the map can search shops near your
-                  address.
+                  {t(
+                    "profile.locationHelp",
+                    "Fill the fields below so the map can search shops near your address.",
+                  )}
                 </p>
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   <div className="space-y-1">
@@ -588,9 +600,11 @@ const UserProfileMenu = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-400">Village</Label>
+                    <Label className="text-xs text-slate-400">
+                      {t("profile.village")}
+                    </Label>
                     <Input
-                      placeholder="Village"
+                      placeholder={t("profile.village")}
                       value={profile.village}
                       onChange={(e) =>
                         setProfile({ ...profile, village: e.target.value })
@@ -599,9 +613,11 @@ const UserProfileMenu = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-400">City</Label>
+                    <Label className="text-xs text-slate-400">
+                      {t("profile.city")}
+                    </Label>
                     <Input
-                      placeholder="City"
+                      placeholder={t("profile.city")}
                       value={profile.city || ""}
                       onChange={(e) =>
                         setProfile({ ...profile, city: e.target.value })
@@ -612,9 +628,11 @@ const UserProfileMenu = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div className="space-y-1">
-                    <Label className="text-xs text-slate-400">Country</Label>
+                    <Label className="text-xs text-slate-400">
+                      {t("profile.country")}
+                    </Label>
                     <Input
-                      placeholder="Country"
+                      placeholder={t("profile.country")}
                       value={profile.country || ""}
                       onChange={(e) =>
                         setProfile({ ...profile, country: e.target.value })
@@ -636,7 +654,7 @@ const UserProfileMenu = () => {
                       ) : (
                         <MapPin className="w-4 h-4" />
                       )}
-                      Use GPS to fill location
+                      {t("profile.useGps")}
                     </Button>
                   </div>
                 </div>
@@ -658,7 +676,7 @@ const UserProfileMenu = () => {
                         {t("profile.company")}
                       </Label>
                       <Input
-                        placeholder="e.g. Fresh Foods Pvt Ltd"
+                        placeholder={t("profile.companyPlaceholder")}
                         value={profile.company || ""}
                         onChange={(e) =>
                           setProfile({ ...profile, company: e.target.value })
@@ -671,7 +689,7 @@ const UserProfileMenu = () => {
                         {t("profile.license")}
                       </Label>
                       <Input
-                        placeholder="License Number"
+                        placeholder={t("profile.licensePlaceholder")}
                         value={profile.license || ""}
                         onChange={(e) =>
                           setProfile({ ...profile, license: e.target.value })
@@ -685,7 +703,7 @@ const UserProfileMenu = () => {
                       {t("profile.interests")}
                     </Label>
                     <Input
-                      placeholder="e.g. Wheat, Rice, Organic Vegetables"
+                      placeholder={t("profile.interestsPlaceholder")}
                       value={profile.interests || ""}
                       onChange={(e) =>
                         setProfile({ ...profile, interests: e.target.value })

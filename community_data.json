@@ -204,6 +204,20 @@
             "farmSize": "1",
             "experience": "",
             "crops": ""
+        },
+        "prashant": {
+            "name": "prashant",
+            "email": "prashantdwivedi.0219@gmail.com",
+            "photoUrl": "/images/farmer.png",
+            "bio": "Passionate farmer.",
+            "dob": "2026-04-30",
+            "country": "India",
+            "state": "Bihar",
+            "district": "Samastipur",
+            "village": "kesonarayanpur",
+            "farmSize": "",
+            "experience": "",
+            "crops": ""
         }
     }
 }

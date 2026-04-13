@@ -1,9 +1,8 @@
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuthStore } from "@/store/authStore";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
@@ -50,7 +49,90 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const Navbar = () => {
   const { isAuthenticated, logout, user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+
+  const userRole = user?.role;
+  const isGov = userRole === "government";
+  const isBuyer = userRole === "buyer";
+  const isFarmer = isAuthenticated && !isGov && !isBuyer;
+
+  const mainLinks = [
+    { name: t("nav.home"), path: "/", public: true, buyer: true },
+    {
+      name: t("nav.buyerDashboard"),
+      path: "/buyer/dashboard",
+      public: false,
+      gov: false,
+      buyer: true,
+    },
+    {
+      name: t("nav.marketplace"),
+      path: "/marketplace",
+      public: false,
+      gov: false,
+      buyer: false,
+    },
+    {
+      name: t("nav.communityForum"),
+      path: "/community",
+      public: false,
+      gov: false,
+      buyer: false,
+    },
+    {
+      name: t("nav.advisoryHub"),
+      path: "/advisory-hub",
+      public: false,
+      gov: false,
+      buyer: false,
+    },
+    {
+      name: t("nav.adminDashboard"),
+      path: "/gov/dashboard",
+      public: false,
+      gov: true,
+      buyer: false,
+    },
+  ].filter((item) => {
+    if (item.public) return !isAuthenticated;
+    if (!isAuthenticated) return false;
+    if (isGov)
+      return item.gov === true || (item.public && item.name === t("nav.home"));
+    if (isBuyer)
+      return item.buyer === true || (item.public && item.name === t("nav.home"));
+    return item.gov === false && item.buyer !== true;
+  });
+
+  const aiTools = [
+    { name: t("nav.diseaseDetection"), path: "/disease-detection" },
+    { name: t("nav.yieldPrediction"), path: "/yield-prediction" },
+    { name: t("nav.digitalTwin"), path: "/digital-twin" },
+    { name: t("nav.voiceAssistant"), path: "/voice-assistant" },
+    {
+      name: t("nav.fertilizerAi"),
+      path: "/fertilizer-recommendation",
+    },
+    { name: t("nav.pestForecast"), path: "/pest-prediction" },
+    {
+      name: t("nav.seedFinder", "Seed Finder"),
+      path: "/seed-finder",
+    },
+    {
+      name: t("nav.traceability", "Web3 Traceability"),
+      path: "/traceability",
+    },
+  ];
+
+  const isAiToolsActive = aiTools.some(
+    (tool) => location.pathname.replace(/\/+$/, "") === tool.path.replace(/\/+$/, ""),
+  );
+
+  const isLinkActive = (path: string) =>
+    location.pathname.replace(/\/+$/, "") === path.replace(/\/+$/, "");
+
+  const isAiToolActive = (path: string) =>
+    location.pathname.replace(/\/+$/, "") === path.replace(/\/+$/, "");
 
   const handleLogout = async () => {
     await logout();
@@ -58,166 +140,95 @@ const Navbar = () => {
   };
 
   return (
-    <motion.header
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6 }}
-      className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
-    >
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <motion.div
-          className="flex items-center gap-2 cursor-pointer"
-          whileHover={{ scale: 1.05 }}
-          transition={{ type: "spring", stiffness: 400 }}
-          onClick={() => navigate("/")}
-        >
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => navigate("/")}>
           <img
             src="/Screenshot 2025-11-21 114200.png"
             alt="AgriSphere AI Logo"
             className="w-10 h-10 rounded-full object-cover shadow-glow-primary border-2 border-primary/30"
           />
           <span className="text-xl font-bold gradient-text">AgriSphere AI</span>
-        </motion.div>
+        </div>
 
-        <nav className="hidden xl:flex items-center gap-6">
-          {(() => {
-            const userRole = user?.role;
-            const isGov = userRole === "government";
-            const isBuyer = userRole === "buyer";
+        <nav className="flex flex-1 min-w-0 items-center gap-2 overflow-x-auto whitespace-nowrap py-1">
+          {mainLinks.map((item, i) => (
+            <div key={item.name} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate(item.path)}
+                className={`group relative inline-flex items-center rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                  isLinkActive(item.path)
+                    ? "bg-primary/10 text-foreground shadow-sm"
+                    : "text-foreground/70 hover:text-foreground"
+                }`}
+              >
+                {item.name}
+                <span
+                  className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-green-500 transition-transform duration-300 ${
+                    isLinkActive(item.path)
+                      ? "scale-x-100"
+                      : "scale-x-0 group-hover:scale-x-100"
+                  }`}
+                />
+              </button>
+                </div>
+          ))}
 
-            const mainLinks = [
-              { name: t("nav.home"), path: "/", public: true, buyer: true },
-              {
-                name: t("nav.buyerDashboard"),
-                path: "/buyer/dashboard",
-                public: false,
-                gov: false,
-                buyer: true,
-              },
-              {
-                name: t("nav.marketplace"),
-                path: "/marketplace",
-                public: false,
-                gov: false,
-                buyer: false,
-              },
-              {
-                name: t("nav.communityForum"),
-                path: "/community",
-                public: false,
-                gov: false,
-                buyer: false,
-              },
-              {
-                name: t("nav.advisoryHub"),
-                path: "/advisory-hub",
-                public: false,
-                gov: false,
-                buyer: false,
-              },
-              {
-                name: t("nav.adminDashboard"),
-                path: "/gov/dashboard",
-                public: false,
-                gov: true,
-                buyer: false,
-              },
-            ].filter((item) => {
-              if (item.public) return !isAuthenticated;
-              if (!isAuthenticated) return false;
-              if (isGov)
-                return (
-                  item.gov === true ||
-                  (item.public && item.name === t("nav.home"))
-                );
-              if (isBuyer)
-                return (
-                  item.buyer === true ||
-                  (item.public && item.name === t("nav.home"))
-                );
-              return item.gov === false && item.buyer !== true;
-            });
-
-            const aiTools = [
-              { name: t("nav.diseaseDetection"), path: "/disease-detection" },
-              { name: t("nav.yieldPrediction"), path: "/yield-prediction" },
-              { name: t("nav.digitalTwin"), path: "/digital-twin" },
-              { name: t("nav.voiceAssistant"), path: "/voice-assistant" },
-              {
-                name: t("nav.fertilizerAi"),
-                path: "/fertilizer-recommendation",
-              },
-              { name: t("nav.pestForecast"), path: "/pest-prediction" },
-              {
-                name: t("nav.seedFinder", "Seed Finder"),
-                path: "/seed-finder",
-              },
-              {
-                name: t("nav.traceability", "Web3 Traceability"),
-                path: "/traceability",
-              },
-            ];
-
-            const isFarmer = isAuthenticated && !isGov && !isBuyer;
-
-            return (
-              <>
-                {mainLinks.map((item, i) => (
-                  <motion.a
-                    key={item.name}
-                    href={item.path}
-                    className="text-foreground/80 hover:text-foreground transition-colors relative group text-sm font-medium"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
+          {isFarmer && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={`group relative inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium outline-none transition-colors ${
+                  isAiToolsActive
+                    ? "bg-primary/10 text-foreground"
+                    : "text-foreground/70 hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-primary" />
+                {t("nav.aiTools")}
+                <ChevronDown className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
+                <span
+                  className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-green-500 transition-transform duration-300 ${
+                    isAiToolsActive ? "scale-x-100" : "scale-x-0"
+                  }`}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="bg-background/95 backdrop-blur-xl border-border/50 min-w-[200px]"
+                align="start"
+              >
+                {aiTools.map((tool) => (
+                  <DropdownMenuItem
+                    key={tool.name}
+                    className={`cursor-pointer transition-colors ${
+                      isAiToolActive(tool.path)
+                        ? "bg-green-500/10 text-green-600 font-semibold"
+                        : "hover:bg-primary/10"
+                    }`}
+                    onClick={() => navigate(tool.path)}
                   >
-                    {item.name}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-primary group-hover:w-full transition-all duration-300" />
-                  </motion.a>
+                    {tool.name}
+                  </DropdownMenuItem>
                 ))}
-
-                {isFarmer && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors text-sm font-medium outline-none group">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      {t("nav.aiTools")}
-                      <ChevronDown className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="bg-background/95 backdrop-blur-xl border-border/50 min-w-[200px]"
-                      align="start"
-                    >
-                      {aiTools.map((tool) => (
-                        <DropdownMenuItem
-                          key={tool.name}
-                          className="cursor-pointer hover:bg-primary/10 transition-colors"
-                          onClick={() => navigate(tool.path)}
-                        >
-                          {tool.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </>
-            );
-          })()}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
           <LanguageSwitcher />
           <ThemeToggle />
           {!isAuthenticated && (
             <>
               <Button
                 variant="outline"
-                className="hidden md:inline-flex"
+                className="inline-flex text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => navigate("/login")}
               >
                 {t("nav.login")}
               </Button>
               <Button
-                className="bg-gradient-primary hover:shadow-glow-primary transition-all duration-300"
+                className="bg-gradient-primary hover:shadow-glow-primary transition-all duration-300 text-xs sm:text-sm px-2 sm:px-4"
                 onClick={() => navigate("/signup")}
               >
                 {t("nav.getStarted")}
@@ -233,7 +244,7 @@ const Navbar = () => {
           )}
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 };
 

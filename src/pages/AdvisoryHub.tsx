@@ -18,6 +18,7 @@ import { fetchFarmingVideos } from "@/services/youtubeService";
 import { FarmerProfile, Scheme, NewsArticle, Video } from "@/types/advisory";
 import { useAuthStore } from "@/store/authStore";
 import { getProfileLocation } from "@/lib/profile-utils";
+import Navbar from "@/components/Navbar";
 
 // Components
 import { SchemeCard } from "@/components/Advisory/SchemeCard";
@@ -365,7 +366,9 @@ const AdvisoryHub = () => {
     };
 
     return (
-        <div className="container mx-auto p-4 md:p-6 max-w-7xl animate-in fade-in duration-500">
+        <div className="min-h-screen pt-24 pb-8">
+            <Navbar />
+            <div className="container mx-auto p-4 md:p-6 max-w-7xl animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-green-800 flex items-center gap-2">
@@ -658,6 +661,7 @@ const AdvisoryHub = () => {
                     </div>
                 </TabsContent>
             </Tabs>
+            </div>
         </div>
     );
 };

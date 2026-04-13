@@ -69,6 +69,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useTranslation } from "react-i18next";
 import { speakText, stopSpeech } from "@/services/voiceService";
 import { useDialect } from "@/lib/use-dialect";
+import Navbar from "@/components/Navbar";
 
 // Comprehensive District Mapping
 const DISTRICTS: Record<string, string[]> = {
@@ -512,7 +513,9 @@ const Marketplace = () => {
   }, []);
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl animate-fade-in">
+    <div className="min-h-screen pt-24 pb-8">
+      <Navbar />
+      <div className="container mx-auto p-4 max-w-7xl animate-fade-in">
       <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold gradient-text mb-2">{t('marketplace.title')}</h1>
@@ -1768,6 +1771,7 @@ const Marketplace = () => {
         </TabsContent>
 
       </Tabs>
+      </div>
     </div>
   );
 };

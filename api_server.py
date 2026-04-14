@@ -24,6 +24,11 @@ import base64
 import uuid
 import whatsapp_handler
 
+try:
+    from pymongo import MongoClient
+except ImportError:
+    MongoClient = None
+
 def call_groq_with_fallback(prompt, system_message="You are a helpful agricultural AI. Output valid JSON only.", response_format={"type": "json_object"}, temperature=0.2, max_tokens=600):
     """
     Call Groq API with automatic model fallback for rate limits and errors.
@@ -70,6 +75,358 @@ LISTINGS_FILE = "listings.json"
 COMMUNITY_DATA_FILE = "community_data.json"
 CROP_LOSS_FILE = "crop_loss_data.json"
 DEMANDS_FILE = "demands.json"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "agrisphere_ai")
+
+mongo_client = None
+mongo_db = None
+users_collection = None
+chat_collection = None
+
+
+def init_chat_mongo():
+    global mongo_client, mongo_db, users_collection, chat_collection
+
+    if MongoClient is None:
+        print("MongoDB driver not installed; user and chat data will fall back to JSON storage.")
+        return False
+
+    try:
+        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=1000)
+        mongo_client.admin.command("ping")
+        mongo_db = mongo_client[MONGO_DB_NAME]
+        users_collection = mongo_db["community_users"]
+        chat_collection = mongo_db["community_chat"]
+        users_collection.create_index("firebaseUid")
+        users_collection.create_index("username")
+        users_collection.create_index("email")
+        chat_collection.create_index("id", unique=True)
+        chat_collection.create_index([("senderId", 1), ("recipientId", 1), ("timestamp", -1)])
+        chat_collection.create_index([("recipient", 1), ("timestamp", -1)])
+        chat_collection.create_index([("sender", 1), ("timestamp", -1)])
+        print(f"Connected to MongoDB user/chat store at {MONGO_URI}{MONGO_DB_NAME}")
+        return True
+    except Exception as exc:
+        print(f"MongoDB user/chat store unavailable, using JSON fallback: {exc}")
+        mongo_client = None
+        mongo_db = None
+        users_collection = None
+        chat_collection = None
+        return False
+
+
+MONGO_CHAT_ENABLED = init_chat_mongo()
+
+
+def normalize_chat_message(message):
+    return {key: value for key, value in message.items() if key != "_id"}
+
+
+def normalize_user_document(profile_data, user_id, existing_doc=None):
+    existing_doc = existing_doc or {}
+    username = profile_data.get("username") or existing_doc.get("username") or profile_data.get("name") or user_id
+    firebase_uid = profile_data.get("firebaseUid") or existing_doc.get("firebaseUid") or user_id
+
+    return {
+        "_id": user_id,
+        "firebaseUid": firebase_uid,
+        "username": username,
+        "name": profile_data.get("name", existing_doc.get("name", username)),
+        "email": profile_data.get("email", existing_doc.get("email", "")),
+        "photoUrl": profile_data.get("photoUrl", existing_doc.get("photoUrl", "")),
+        "bio": profile_data.get("bio", existing_doc.get("bio", "No bio yet.")),
+        "role": profile_data.get("role", existing_doc.get("role", "farmer")),
+        "dob": profile_data.get("dob", existing_doc.get("dob", "")),
+        "country": profile_data.get("country", existing_doc.get("country", "India")),
+        "state": profile_data.get("state", existing_doc.get("state", "")),
+        "district": profile_data.get("district", existing_doc.get("district", "")),
+        "village": profile_data.get("village", existing_doc.get("village", "")),
+        "farmSize": profile_data.get("farmSize", existing_doc.get("farmSize", "")),
+        "experience": profile_data.get("experience", existing_doc.get("experience", "")),
+        "crops": profile_data.get("crops", existing_doc.get("crops", "")),
+        "createdAt": existing_doc.get("createdAt", datetime.now().isoformat()),
+        "updatedAt": datetime.now().isoformat(),
+    }
+
+
+def migrate_legacy_users_to_mongo():
+    if users_collection is None:
+        return
+
+    if users_collection.estimated_document_count() > 0:
+        return
+
+    legacy_data = load_community_data()
+    legacy_profiles = legacy_data.get("profiles", {})
+    if not legacy_profiles:
+        return
+
+    prepared_users = []
+    for username, profile in legacy_profiles.items():
+        prepared_users.append(
+            normalize_user_document({**profile, "username": username}, username)
+        )
+
+    if prepared_users:
+        users_collection.insert_many(prepared_users, ordered=False)
+        print(f"Migrated {len(prepared_users)} legacy user profiles into MongoDB")
+
+
+if MONGO_CHAT_ENABLED:
+    migrate_legacy_users_to_mongo()
+
+
+def resolve_user_reference(identifier):
+    if not identifier:
+        return None
+
+    if users_collection is not None:
+        doc = users_collection.find_one(
+            {
+                "$or": [
+                    {"_id": identifier},
+                    {"firebaseUid": identifier},
+                    {"username": identifier},
+                    {"email": identifier},
+                ]
+            }
+        )
+        if doc:
+            return doc
+
+    return None
+
+
+def serialize_user_document(doc):
+    if not doc:
+        return {}
+
+    return {
+        "id": doc.get("_id") or doc.get("firebaseUid") or doc.get("username") or doc.get("email") or "",
+        "firebaseUid": doc.get("firebaseUid", ""),
+        "username": doc.get("username", ""),
+        "name": doc.get("name", doc.get("username", "")),
+        "email": doc.get("email", ""),
+        "photoUrl": doc.get("photoUrl", ""),
+        "bio": doc.get("bio", "No bio yet."),
+        "role": doc.get("role", "farmer"),
+        "dob": doc.get("dob", ""),
+        "country": doc.get("country", "India"),
+        "state": doc.get("state", ""),
+        "district": doc.get("district", ""),
+        "village": doc.get("village", ""),
+        "farmSize": doc.get("farmSize", ""),
+        "experience": doc.get("experience", ""),
+        "crops": doc.get("crops", ""),
+    }
+
+
+def upsert_user_profile(profile_data):
+    user_identifier = profile_data.get("firebaseUid") or profile_data.get("userId") or profile_data.get("username")
+    if not user_identifier:
+        return None
+
+    existing_doc = resolve_user_reference(user_identifier) or resolve_user_reference(profile_data.get("username")) or resolve_user_reference(profile_data.get("email"))
+    target_id = profile_data.get("username") or profile_data.get("userId") or (existing_doc.get("_id") if existing_doc else None) or profile_data.get("firebaseUid")
+    normalized = normalize_user_document(profile_data, target_id, existing_doc)
+
+    if users_collection is not None:
+        if existing_doc and existing_doc.get("_id") != target_id:
+            users_collection.delete_one({"_id": existing_doc.get("_id")})
+        users_collection.replace_one({"_id": target_id}, normalized, upsert=True)
+        return normalized
+
+    data = load_community_data()
+    if "profiles" not in data:
+        data["profiles"] = {}
+    data["profiles"][normalized["username"]] = normalized
+    save_community_data(data)
+    return normalized
+
+
+def serialize_chat_message(message):
+    if not message:
+        return {}
+
+    sender_name = message.get("senderName") or message.get("senderUsername") or message.get("sender", "")
+    recipient_name = message.get("recipientName") or message.get("recipientUsername") or message.get("recipient", "")
+
+    return {
+        "id": message.get("id", ""),
+        "senderId": message.get("senderId", message.get("sender", "")),
+        "sender": sender_name,
+        "senderName": sender_name,
+        "senderUsername": message.get("senderUsername", sender_name),
+        "recipientId": message.get("recipientId", message.get("recipient", "")),
+        "recipient": recipient_name,
+        "recipientName": recipient_name,
+        "recipientUsername": message.get("recipientUsername", recipient_name),
+        "text": message.get("text", ""),
+        "timestamp": message.get("timestamp", datetime.now().isoformat()),
+        "read": message.get("read", False),
+    }
+
+
+def build_chat_document(message):
+    sender_ref = resolve_user_reference(message.get("senderId") or message.get("sender") or message.get("senderUsername"))
+    recipient_ref = resolve_user_reference(message.get("recipientId") or message.get("recipient") or message.get("recipientUsername"))
+
+    sender_id = (sender_ref or {}).get("_id") or message.get("senderId") or message.get("sender") or message.get("senderUsername") or ""
+    recipient_id = (recipient_ref or {}).get("_id") or message.get("recipientId") or message.get("recipient") or message.get("recipientUsername") or ""
+
+    sender_name = (sender_ref or {}).get("name") or message.get("senderName") or message.get("senderUsername") or message.get("sender") or sender_id
+    recipient_name = (recipient_ref or {}).get("name") or message.get("recipientName") or message.get("recipientUsername") or message.get("recipient") or recipient_id
+
+    sender_username = (sender_ref or {}).get("username") or message.get("senderUsername") or message.get("sender") or sender_id
+    recipient_username = (recipient_ref or {}).get("username") or message.get("recipientUsername") or message.get("recipient") or recipient_id
+
+    return {
+        "id": message.get("id", str(uuid.uuid4())),
+        "senderId": sender_id,
+        "sender": sender_name,
+        "senderName": sender_name,
+        "senderUsername": sender_username,
+        "recipientId": recipient_id,
+        "recipient": recipient_name,
+        "recipientName": recipient_name,
+        "recipientUsername": recipient_username,
+        "text": message.get("text", ""),
+        "timestamp": message.get("timestamp", datetime.now().isoformat()),
+        "read": message.get("read", False),
+    }
+
+
+def build_chat_thread_query(user1, user2):
+    user1_ref = resolve_user_reference(user1)
+    user2_ref = resolve_user_reference(user2)
+
+    user1_id = (user1_ref or {}).get("_id") or user1
+    user2_id = (user2_ref or {}).get("_id") or user2
+
+    return {
+        "$or": [
+            {"senderId": user1_id, "recipientId": user2_id},
+            {"senderId": user2_id, "recipientId": user1_id},
+            {"sender": user1, "recipient": user2},
+            {"sender": user2, "recipient": user1},
+        ]
+    }, user1_id, user2_id
+
+
+def mark_thread_as_read(receiver_id, sender_id):
+    if chat_collection is None:
+        return
+
+    chat_collection.update_many(
+        {
+            "senderId": sender_id,
+            "recipientId": receiver_id,
+            "read": {"$ne": True},
+        },
+        {"$set": {"read": True}},
+    )
+
+    receiver_ref = resolve_user_reference(receiver_id)
+    sender_ref = resolve_user_reference(sender_id)
+    receiver_name = (receiver_ref or {}).get("name") or receiver_id
+    sender_name = (sender_ref or {}).get("name") or sender_id
+
+    chat_collection.update_many(
+        {
+            "sender": sender_name,
+            "recipient": receiver_name,
+            "read": {"$ne": True},
+        },
+        {"$set": {"read": True}},
+    )
+
+
+def seed_chat_messages_from_json():
+    if chat_collection is None:
+        return
+
+    try:
+        if chat_collection.estimated_document_count() > 0:
+            return
+
+        legacy_data = load_community_data()
+        legacy_chat = legacy_data.get("chat", [])
+        if not legacy_chat:
+            return
+
+        prepared_chat = []
+        for message in legacy_chat:
+            prepared_chat.append(build_chat_document(message))
+
+        if prepared_chat:
+            chat_collection.insert_many(prepared_chat, ordered=False)
+            print(f"Seeded {len(prepared_chat)} legacy chat messages into MongoDB")
+    except Exception as exc:
+        print(f"Failed to seed Mongo chat store: {exc}")
+
+
+def get_chat_messages(user1=None, user2=None):
+    if chat_collection is None:
+        raise RuntimeError("Mongo chat store is not available")
+
+    if user1 and user2:
+        thread_query, _, _ = build_chat_thread_query(user1, user2)
+        return list(chat_collection.find(thread_query, {"_id": 0}).sort("timestamp", 1))
+
+    return list(chat_collection.find({}, {"_id": 0}).sort("timestamp", 1))
+
+
+def save_chat_message(message):
+    if chat_collection is None:
+        raise RuntimeError("Mongo chat store is not available")
+
+    chat_collection.insert_one(build_chat_document(message))
+
+
+def delete_chat_message_by_id(msg_id, username):
+    if chat_collection is None:
+        return None, ({"error": "Mongo chat store is not available"}, 503)
+
+    message = chat_collection.find_one({"id": msg_id}, {"_id": 0})
+    if not message:
+        return None, ({"error": "Message not found"}, 404)
+
+    sender_ref = resolve_user_reference(username)
+    sender_id = (sender_ref or {}).get("_id") or username
+    sender_name = (sender_ref or {}).get("name") or username
+    if message.get("senderId") != sender_id and message.get("sender") != sender_name and message.get("senderUsername") != username:
+        return None, ({"error": "You can only delete your own messages"}, 403)
+
+    chat_collection.delete_one({"id": msg_id})
+    return {"message": "Message deleted successfully"}, None
+
+
+def get_unread_chat_counts(username):
+    counts = {}
+
+    if chat_collection is None:
+        return counts
+
+    user_ref = resolve_user_reference(username)
+    user_id = (user_ref or {}).get("_id") or username
+    pipeline = [
+        {"$match": {"recipientId": user_id, "read": {"$ne": True}}},
+        {
+            "$group": {
+                "_id": "$senderId",
+                "count": {"$sum": 1},
+                "senderName": {"$first": "$senderName"},
+                "senderUsername": {"$first": "$senderUsername"},
+            }
+        },
+    ]
+
+    for row in chat_collection.aggregate(pipeline):
+        sender = row.get("senderName") or row.get("senderUsername") or row.get("_id")
+        if sender:
+            counts[sender] = row.get("count", 0)
+
+    return counts
 
 def load_demands():
     if os.path.exists(DEMANDS_FILE):
@@ -1530,15 +1887,15 @@ def handle_heartbeat():
 @app.route('/community/online', methods=['GET'])
 def handle_online_users():
     active_usernames = get_active_users()
-    data = load_community_data()
-    profiles = data.get('profiles', {})
     
     # Return enriched objects
     enriched_users = []
     for username in active_usernames:
-        profile = profiles.get(username, {})
+        profile_doc = resolve_user_reference(username)
+        profile = serialize_user_document(profile_doc) if profile_doc else {}
         enriched_users.append({
             'username': username,
+            'name': profile.get('name', username),
             'photoUrl': profile.get('photoUrl', '')
         })
         
@@ -1546,30 +1903,20 @@ def handle_online_users():
 
 @app.route('/community/chat', methods=['GET', 'POST'])
 def handle_community_chat():
-    data = load_community_data()
-    
     if request.method == 'GET':
         user1 = request.args.get('user1')
         user2 = request.args.get('user2')
-        all_chats = data.get('chat', [])
+        all_chats = get_chat_messages(user1, user2)
         
         if user1 and user2:
-            # Private Chat: Filter messages between user1 and user2
-            filtered_chat = []
-            needs_save = False
-            for msg in all_chats:
-                if msg.get('sender') == user1 and msg.get('recipient') == user2:
-                    filtered_chat.append(msg)
-                elif msg.get('sender') == user2 and msg.get('recipient') == user1:
-                    if not msg.get('read', False):
-                        msg['read'] = True
-                        needs_save = True
-                    filtered_chat.append(msg)
-            if needs_save:
-                save_community_data(data)
+            if chat_collection is not None:
+                _, receiver_id, sender_id = build_chat_thread_query(user1, user2)
+                mark_thread_as_read(receiver_id, sender_id)
+                filtered_chat = all_chats
+            else:
+                filtered_chat = all_chats
             return jsonify(filtered_chat)
         else:
-            # Global Chat: Return messages with NO recipient
             public_chat = [msg for msg in all_chats if not msg.get('recipient')]
             return jsonify(public_chat)
     
@@ -1581,60 +1928,44 @@ def handle_community_chat():
         msg['id'] = str(uuid.uuid4())
         msg['timestamp'] = datetime.now().isoformat()
         msg['read'] = False
-        
-        # Ensure chat list exists
-        if 'chat' not in data:
-            data['chat'] = []
-            
-        data['chat'].append(msg)
-        
-        # Retention Policy: Auto-cleanup messages older than 60 days
-        sixty_days_ago = datetime.now() - timedelta(days=60)
-        # Filter messages relative to now
-        # Parse ISO strings to datetime objects for comparison
-        cleaned_chat = []
-        for m in data['chat']:
-            try:
-                if not m.get('timestamp'):
-                     cleaned_chat.append(m) # No timestamp, keep it safe
-                     continue
-                     
-                msg_time = datetime.fromisoformat(m.get('timestamp'))
-                
-                # Normalize timezone to naive local (since sixty_days_ago is naive local)
-                if msg_time.tzinfo is not None:
-                    msg_time = msg_time.replace(tzinfo=None)
-                    
-                if msg_time > sixty_days_ago:
-                    cleaned_chat.append(m)
-            except (ValueError, TypeError) as e:
-                print(f"Error parsing date for cleanup: {e}")
-                # Keep messages with invalid timestamps to be safe
-        data['chat'] = cleaned_chat
-            
-        save_community_data(data)
+
+        save_chat_message(msg)
+
+        if chat_collection is not None:
+            sixty_days_ago = (datetime.now() - timedelta(days=60)).isoformat()
+            chat_collection.delete_many({'timestamp': {'$lt': sixty_days_ago}})
+        else:
+            data = load_community_data()
+            cleaned_chat = []
+            sixty_days_ago = datetime.now() - timedelta(days=60)
+            for m in data.get('chat', []):
+                try:
+                    if not m.get('timestamp'):
+                        cleaned_chat.append(m)
+                        continue
+
+                    msg_time = datetime.fromisoformat(m.get('timestamp'))
+                    if msg_time.tzinfo is not None:
+                        msg_time = msg_time.replace(tzinfo=None)
+
+                    if msg_time > sixty_days_ago:
+                        cleaned_chat.append(m)
+                except (ValueError, TypeError) as e:
+                    print(f"Error parsing date for cleanup: {e}")
+            data['chat'] = cleaned_chat
+            save_community_data(data)
+
         return jsonify(msg), 201
 
 @app.route('/community/chat/<msg_id>', methods=['DELETE'])
 def delete_chat_message(msg_id):
     username = request.args.get('username')
-    data = load_community_data()
-    
-    # Find the message
-    message = next((msg for msg in data.get('chat', []) if msg.get('id') == msg_id), None)
-    
-    if not message:
-        return jsonify({'error': 'Message not found'}), 404
-    
-    # Only allow deletion if user is the sender
-    if message.get('sender') != username:
-        return jsonify({'error': 'You can only delete your own messages'}), 403
-        
-    # Delete the message
-    data['chat'] = [msg for msg in data.get('chat', []) if msg.get('id') != msg_id]
-    save_community_data(data)
-    
-    return jsonify({'message': 'Message deleted successfully'}), 200
+    result, error_response = delete_chat_message_by_id(msg_id, username)
+    if error_response:
+        body, status = error_response
+        return jsonify(body), status
+
+    return jsonify(result), 200
 
 @app.route('/community/upload-image', methods=['POST'])
 def upload_chat_image():
@@ -1691,26 +2022,14 @@ def get_notifications():
     if not username:
         return jsonify({'error': 'Username required'}), 400
         
-    data = load_community_data()
-    all_chats = data.get('chat', [])
-    
-    # Find active alerts (e.g., unread private messages)
-    # Since we don't have true "read" status yet, we'll return all recent senders
-    # The frontend will filter based on what it has seen or just show "New"
-    
-    notifications = {} # sender -> count
-    
-    for msg in all_chats:
-        if msg.get('recipient') == username:
-            sender = msg.get('sender')
-            if sender and not msg.get('read', False):
-                notifications[sender] = notifications.get(sender, 0) + 1
+    notifications = get_unread_chat_counts(username)
     
     # --- NEW: SYSTEM ALERTS ---
     system_alerts = []
     
     # 1. Get User Profile for Context
-    profile = data.get('profiles', {}).get(username, {})
+    profile_doc = resolve_user_reference(username)
+    profile = serialize_user_document(profile_doc) if profile_doc else {}
     user_district = profile.get('district') or 'Nashik'
     user_state = profile.get('state') or 'Maharashtra'
     
@@ -1795,43 +2114,64 @@ def get_notifications():
 
 @app.route('/user/profile', methods=['GET', 'POST'])
 def handle_user_profile():
-    data = load_community_data()
-    if 'profiles' not in data:
-        data['profiles'] = {} # username -> { name, email, photoUrl, bio }
-        
     if request.method == 'GET':
-        username = request.args.get('username')
-        if not username:
+        identifier = request.args.get('firebaseUid') or request.args.get('username') or request.args.get('email')
+        if not identifier:
              return jsonify({'error': 'Username required'}), 400
-        
-        profile = data['profiles'].get(username, {})
-        return jsonify(profile)
+
+        profile_doc = resolve_user_reference(identifier)
+        if not profile_doc:
+            return jsonify({})
+
+        return jsonify(serialize_user_document(profile_doc))
         
     if request.method == 'POST':
         profile_data = request.json
+        if not profile_data:
+            return jsonify({'error': 'No data provided'}), 400
+
         username = profile_data.get('username')
-        
-        if not username:
+        firebase_uid = profile_data.get('firebaseUid') or profile_data.get('userId')
+
+        if not username and not firebase_uid:
             return jsonify({'error': 'Username required'}), 400
-            
-        data['profiles'][username] = {
-            'name': profile_data.get('name', username),
-            'email': profile_data.get('email', ''),
-            'photoUrl': profile_data.get('photoUrl', ''),
-            'bio': profile_data.get('bio', 'No bio yet.'),
-            # Extended Fields
-            'dob': profile_data.get('dob', ''),
-            'country': profile_data.get('country', 'India'),
-            'state': profile_data.get('state', ''),
-            'district': profile_data.get('district', ''),
-            'village': profile_data.get('village', ''),
-            'farmSize': profile_data.get('farmSize', ''),
-            'experience': profile_data.get('experience', ''),
-            'crops': profile_data.get('crops', '')
-        }
-        
-        save_community_data(data)
-        return jsonify({'message': 'Profile updated', 'profile': data['profiles'][username]})
+
+        saved_profile = upsert_user_profile(profile_data)
+        if not saved_profile:
+            return jsonify({'error': 'Unable to save profile'}), 500
+
+        return jsonify({'message': 'Profile updated', 'profile': serialize_user_document(saved_profile)})
+
+
+@app.route('/community/farmers', methods=['GET'])
+def get_community_farmers():
+    if users_collection is None:
+        return jsonify({'error': 'Mongo user store is not available'}), 503
+
+    farmers = []
+    for profile in users_collection.find({}, {'_id': 1, 'firebaseUid': 1, 'username': 1, 'name': 1, 'email': 1, 'photoUrl': 1, 'role': 1, 'village': 1, 'district': 1, 'state': 1, 'country': 1}):
+        if profile.get('role', 'farmer') != 'farmer':
+            continue
+
+        name = profile.get('name', profile.get('username', ''))
+        address_parts = [
+            profile.get('village', '').strip(),
+            profile.get('district', '').strip(),
+            profile.get('state', '').strip(),
+        ]
+        address = ', '.join(part for part in address_parts if part) or profile.get('country', 'India')
+
+        farmers.append({
+            'id': profile.get('_id') or profile.get('firebaseUid') or profile.get('username'),
+            'firebaseUid': profile.get('firebaseUid', ''),
+            'username': profile.get('username', ''),
+            'name': name,
+            'address': address,
+            'photoUrl': profile.get('photoUrl', ''),
+        })
+
+    farmers.sort(key=lambda item: item['name'].lower())
+    return jsonify(farmers)
 
 @app.route('/community/posts/<post_id>/comments', methods=['POST'])
 def handle_post_comment(post_id):

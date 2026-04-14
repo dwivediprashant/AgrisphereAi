@@ -1,30 +1,40 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { auth } from '@/lib/firebase';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { auth } from "@/lib/firebase";
+import axios from "axios";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   updateProfile,
-  User as FirebaseUser
-} from 'firebase/auth';
+  User as FirebaseUser,
+} from "firebase/auth";
 
 interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
-  role: 'farmer' | 'government' | 'buyer';
+  role: "farmer" | "government" | "buyer";
 }
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string, role?: 'farmer' | 'government' | 'buyer') => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    role?: "farmer" | "government" | "buyer",
+  ) => Promise<void>;
   setUser: (user: User) => void;
-  signup: (email: string, password: string, name: string, role?: 'farmer' | 'government' | 'buyer') => Promise<void>;
+  signup: (
+    email: string,
+    password: string,
+    name: string,
+    role?: "farmer" | "government" | "buyer",
+  ) => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => void;
 }
@@ -36,27 +46,48 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       loading: true,
-      setUser: (user: User) => set({ user, isAuthenticated: true, loading: false }),
-      login: async (email: string, password: string, role: 'farmer' | 'government' | 'buyer' = 'farmer') => {
+      setUser: (user: User) =>
+        set({ user, isAuthenticated: true, loading: false }),
+      login: async (
+        email: string,
+        password: string,
+        role: "farmer" | "government" | "buyer" = "farmer",
+      ) => {
         try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const userCredential = await signInWithEmailAndPassword(
+            auth,
+            email,
+            password,
+          );
           const firebaseUser = userCredential.user;
           const user: User = {
             id: firebaseUser.uid,
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-            email: firebaseUser.email || '',
+            name:
+              firebaseUser.displayName ||
+              firebaseUser.email?.split("@")[0] ||
+              "User",
+            email: firebaseUser.email || "",
             avatar: firebaseUser.photoURL || undefined,
-            role: role
+            role: role,
           };
           set({ user, isAuthenticated: true, loading: false });
         } catch (error) {
-          console.error('Login error:', error);
+          console.error("Login error:", error);
           throw error;
         }
       },
-      signup: async (email: string, password: string, name: string, role: 'farmer' | 'government' | 'buyer' = 'farmer') => {
+      signup: async (
+        email: string,
+        password: string,
+        name: string,
+        role: "farmer" | "government" | "buyer" = "farmer",
+      ) => {
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            email,
+            password,
+          );
           const firebaseUser = userCredential.user;
           // Update display name
           await updateProfile(firebaseUser, {
@@ -65,13 +96,38 @@ export const useAuthStore = create<AuthState>()(
           const user: User = {
             id: firebaseUser.uid,
             name: name,
-            email: firebaseUser.email || '',
+            email: firebaseUser.email || "",
             avatar: firebaseUser.photoURL || undefined,
-            role: role // Use selected role
+            role: role, // Use selected role
           };
+
+          try {
+            await axios.post("http://localhost:5000/user/profile", {
+              firebaseUid: firebaseUser.uid,
+              username: name,
+              name,
+              email: firebaseUser.email || email,
+              photoUrl: firebaseUser.photoURL || "",
+              bio: "",
+              country: "India",
+              state: "",
+              district: "",
+              village: "",
+              farmSize: "",
+              experience: "",
+              crops: "",
+              role,
+            });
+          } catch (profileError) {
+            console.error("Profile bootstrap error:", profileError);
+          }
+
+          localStorage.setItem("agrisphere_username", name);
+          localStorage.setItem("agrisphere_email", firebaseUser.email || email);
+          localStorage.setItem("agrisphere_user_id", firebaseUser.uid);
           set({ user, isAuthenticated: true, loading: false });
         } catch (error) {
-          console.error('Signup error:', error);
+          console.error("Signup error:", error);
           throw error;
         }
       },
@@ -80,7 +136,7 @@ export const useAuthStore = create<AuthState>()(
           await signOut(auth);
           set({ user: null, isAuthenticated: false, loading: false });
         } catch (error) {
-          console.error('Logout error:', error);
+          console.error("Logout error:", error);
           throw error;
         }
       },
@@ -89,15 +145,19 @@ export const useAuthStore = create<AuthState>()(
           if (firebaseUser) {
             // Check if we have a persisted role in local state, otherwise default
             const persistedState = get();
-            const currentRole = persistedState.user?.role || 'farmer';
+            const currentRole = persistedState.user?.role || "farmer";
 
             const user: User = {
               id: firebaseUser.uid,
-              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-              email: firebaseUser.email || '',
+              name:
+                firebaseUser.displayName ||
+                firebaseUser.email?.split("@")[0] ||
+                "User",
+              email: firebaseUser.email || "",
               avatar: firebaseUser.photoURL || undefined,
-              role: currentRole
+              role: currentRole,
             };
+            localStorage.setItem("agrisphere_user_id", firebaseUser.uid);
             set({ user, isAuthenticated: true, loading: false });
           } else {
             set({ user: null, isAuthenticated: false, loading: false });
@@ -106,11 +166,11 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage',
+      name: "auth-storage",
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );

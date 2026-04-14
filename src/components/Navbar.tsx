@@ -430,8 +430,10 @@ const UserProfileMenu = () => {
     // Save to backend
     try {
       await axios.post(`${API_URL}/user/profile`, {
+        firebaseUid: user?.id,
         username: profile.name,
         email: user?.email,
+        role: user?.role,
         ...profile,
       });
     } catch (e) {
